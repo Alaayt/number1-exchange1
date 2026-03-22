@@ -31,7 +31,7 @@ function ripple(e) {
 // ══ قاعدة التعليقات ══
 const ALL_REVIEWS = [
   { nameAr:"زكريا عمر",     nameEn:"Zakaria Omar",     color:"linear-gradient(135deg,#00d2ff,#7c5cfc)", textAr:"أفضل خدمة تبادل! سريع وموثوق جداً",                   textEn:"Best exchange service! Very fast and reliable" },
-  { nameAr:"ايسر عدن",     nameEn:"Mokhtar Aden",     color:"linear-gradient(135deg,#c8a84b,#f59e0b)", textAr:"خدمة ممتازة وسريعة، أنصح بها للجميع",                  textEn:"Excellent and fast service, recommend to everyone" },
+  { nameAr:"محتار عدن",     nameEn:"Mokhtar Aden",     color:"linear-gradient(135deg,#c8a84b,#f59e0b)", textAr:"خدمة ممتازة وسريعة، أنصح بها للجميع",                  textEn:"Excellent and fast service, recommend to everyone" },
   { nameAr:"أحمد سالم",     nameEn:"Ahmed Salem",      color:"linear-gradient(135deg,#00e5a0,#00b3d9)", textAr:"تجربة رائعة أنصح بها بشدة، الدعم ممتاز",               textEn:"Wonderful experience, strongly recommend it" },
   { nameAr:"فاطمة الزهراء", nameEn:"Fatima Al-Zahra",  color:"linear-gradient(135deg,#e91e63,#ff6090)", textAr:"تحويل سريع جداً! وصل المبلغ في دقيقتين",               textEn:"Very fast transfer! Amount arrived in two minutes" },
   { nameAr:"محمد الخالدي",  nameEn:"Mohammed Khalidi", color:"linear-gradient(135deg,#f7931a,#ffd700)", textAr:"منصة موثوقة استخدمها منذ سنة ولم أواجه أي مشكلة",      textEn:"Trusted platform, using it for a year with no issues" },
@@ -482,7 +482,7 @@ function FeatureCard({feature,lang}) {
   const [hov,setHov]=useState(false)
   return (
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      style={{background:"var(--card)",border:`1px solid ${hov?"rgba(0,210,255,0.2)":"var(--border-1)"}`,borderRadius:20,padding:"26px 22px",textAlign:"center",transition:"all 0.3s",transform:hov?"translateY(-5px)":"translateY(0)",boxShadow:hov?"0 20px 50px rgba(0,0,0,0.3)":"none",position:"relative",overflow:"hidden"}}>
+      style={{background:"var(--card)",border:`1px solid ${hov?"rgba(0,210,255,0.2)":"var(--border-1)"}`,borderRadius:20,padding:"26px 22px",textAlign:"center",transition:"all 0.3s",transform:hov?"translateY(-5px)":"translateY(0)",boxShadow:hov?"0 20px 50px rgba(0,0,0,0.3)":"0 2px 12px var(--shadow)",position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:0,left:"25%",width:"50%",height:1,background:"linear-gradient(90deg,transparent,var(--cyan),transparent)",opacity:hov?1:0,transition:"opacity 0.3s"}}/>
       <div style={{width:62,height:62,borderRadius:18,background:"var(--cyan-dim)",border:"1px solid rgba(0,210,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 17px",fontSize:"1.6rem",transition:"transform 0.3s",transform:hov?"scale(1.1) rotate(4deg)":"none"}}>{feature.icon}</div>
       <h3 style={{fontSize:"0.92rem",fontWeight:800,marginBottom:8}}>{lang==="ar"?feature.titleAr:feature.titleEn}</h3>
@@ -505,7 +505,7 @@ function FeaturesSection() {
     <div style={{marginTop:60}}>
       <div style={{textAlign:"center",marginBottom:48}}>
         <div style={{display:"inline-block",fontFamily:"'JetBrains Mono',monospace",fontSize:"0.68rem",letterSpacing:3,textTransform:"uppercase",color:"var(--cyan)",marginBottom:11,padding:"3px 11px",border:"1px solid rgba(0,210,255,0.14)",borderRadius:20,background:"rgba(0,210,255,0.04)"}}>{t("features_badge")}</div>
-        <h2 style={{fontSize:"clamp(1.55rem,2.8vw,2.3rem)",fontWeight:900,marginBottom:9}}>{t("features_title")}</h2>
+        <h2 style={{fontSize:"clamp(1.55rem,2.8vw,2.3rem)",fontWeight:900,marginBottom:9,direction:lang==="ar"?"rtl":"ltr"}}>{t("features_title")}</h2>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:18}}>
         {FEATURES.map((f,i)=><FeatureCard key={i} feature={f} lang={lang}/>)}
@@ -517,7 +517,7 @@ function FeaturesSection() {
 function Footer({onNavigate}) {
   const {t}=useLang()
   return (
-    <footer style={{background:"rgba(0,0,0,0.45)",borderTop:"1px solid var(--border-1)",padding:"50px 0 26px",marginTop:60}}>
+    <footer style={{background:"var(--footer-bg)",borderTop:"1px solid var(--border-1)",padding:"50px 0 26px",marginTop:60}}>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"0 22px"}}>
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:38,marginBottom:36}}>
           <div>

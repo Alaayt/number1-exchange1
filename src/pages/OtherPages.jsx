@@ -57,7 +57,7 @@ export function News() {
       <div style={{maxWidth:1200,margin:'0 auto',padding:'55px 22px'}}>
         <div style={{textAlign:'center',marginBottom:48}}>
           <div style={{display:'inline-block',fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',letterSpacing:3,textTransform:'uppercase',color:'var(--cyan)',marginBottom:11,padding:'3px 11px',border:'1px solid rgba(0,210,255,0.14)',borderRadius:20,background:'rgba(0,210,255,0.04)'}}>{t('news_badge')}</div>
-          <h2 style={{fontSize:'clamp(1.55rem,2.8vw,2.3rem)',fontWeight:900,marginBottom:9}}>{t('news_title')}</h2>
+          <h2 style={{fontSize:'clamp(1.55rem,2.8vw,2.3rem)',fontWeight:900,marginBottom:9,direction:'ltr'}}>{t('news_title')}</h2>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:18}}>
           {NEWS.map((article,i)=><NewsCard key={i} article={article} onClick={()=>setSelected(article)}/>)}
@@ -103,7 +103,7 @@ export function Support() {
       <div style={{maxWidth:1200,margin:'0 auto',padding:'55px 22px'}}>
         <div style={{textAlign:'center',marginBottom:48}}>
           <div style={{display:'inline-block',fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',letterSpacing:3,textTransform:'uppercase',color:'var(--cyan)',marginBottom:11,padding:'3px 11px',border:'1px solid rgba(0,210,255,0.14)',borderRadius:20,background:'rgba(0,210,255,0.04)'}}>{t('support_badge')}</div>
-          <h2 style={{fontSize:'clamp(1.55rem,2.8vw,2.3rem)',fontWeight:900,marginBottom:9}}>{t('support_title')}</h2>
+          <h2 style={{fontSize:'clamp(1.55rem,2.8vw,2.3rem)',fontWeight:900,marginBottom:9,direction:'ltr'}}>{t('support_title')}</h2>
         </div>
 
         {/* بطاقات التواصل بصور حقيقية */}
@@ -142,14 +142,14 @@ export function Support() {
 
 // ══ ABOUT ══
 const STATS = [
-  { icon:'📈', titleAr:'6,753+',    titleEn:'6,753+',       descAr:'مستخدم نشط يثق في منصتنا يومياً',                 descEn:'Active users who trust our platform daily' },
+  { icon:'📈', titleAr:'52,000+',    titleEn:'52,000+',       descAr:'مستخدم نشط يثق في منصتنا يومياً',                 descEn:'Active users who trust our platform daily' },
   { icon:'🔐', titleAr:'ISO 27001',  titleEn:'ISO 27001',     descAr:'شهادة أمان دولية معتمدة',                         descEn:'International certified security standard' },
-  { icon:'🌍', titleAr:'6+ دولة',   titleEn:'6+ Countries', descAr:'تغطية جغرافية واسعة في المنطقة العربية والعالم',  descEn:'Wide geographic coverage across the Arab region and globally' },
+  { icon:'🌍', titleAr:'50+ دولة',   titleEn:'50+ Countries', descAr:'تغطية جغرافية واسعة في المنطقة العربية والعالم',  descEn:'Wide geographic coverage across the Arab region and globally' },
 ]
 
 const TEAM = [
   { nameAr:'أحمد الرشيد',  nameEn:'Ahmed Al-Rashid',  roleAr:'المدير التنفيذي',       roleEn:'CEO',                color:'linear-gradient(135deg,#00d2ff,#7c5cfc)' },
-  { nameAr:'كرم محمود',   nameEn:'Karam Mahmoud',     roleAr:'مديرة تقنية المعلومات', roleEn:'CTO',                color:'linear-gradient(135deg,#c8a84b,#f59e0b)' },
+  { nameAr:'سارة محمود',   nameEn:'Sara Mahmoud',     roleAr:'مديرة تقنية المعلومات', roleEn:'CTO',                color:'linear-gradient(135deg,#c8a84b,#f59e0b)' },
   { nameAr:'خالد عبدالله', nameEn:'Khalid Abdullah',  roleAr:'مدير العمليات',         roleEn:'Operations Director', color:'linear-gradient(135deg,#00e5a0,#00b3d9)' },
 ]
 
@@ -158,7 +158,7 @@ function StatCard({ stat }) {
   const [hov, setHov] = useState(false)
   return (
     <div onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      style={{background:'var(--card)',border:`1px solid ${hov?'rgba(0,210,255,0.2)':'var(--border-1)'}`,borderRadius:20,padding:'26px 22px',textAlign:'center',transition:'all 0.3s',transform:hov?'translateY(-5px)':'translateY(0)',boxShadow:hov?'0 20px 50px rgba(0,0,0,0.3)':'none'}}>
+      style={{background:'var(--card)',border:`1px solid ${hov?'rgba(0,210,255,0.2)':'var(--border-1)'}`,borderRadius:20,padding:'26px 22px',textAlign:'center',transition:'all 0.3s',transform:hov?'translateY(-5px)':'translateY(0)',boxShadow:hov?'0 20px 50px rgba(0,0,0,0.3)':'0 2px 12px var(--shadow)'}}>
       <div style={{fontSize:'2rem',marginBottom:12}}>{stat.icon}</div>
       <h3 style={{fontFamily:"'Orbitron',sans-serif",fontSize:'1.2rem',fontWeight:900,color:'var(--cyan)',marginBottom:8,textShadow:'0 0 18px rgba(0,210,255,0.4)'}}>{lang==='ar'?stat.titleAr:stat.titleEn}</h3>
       <p style={{fontSize:'0.82rem',color:'var(--text-2)',lineHeight:1.6}}>{lang==='ar'?stat.descAr:stat.descEn}</p>
@@ -188,7 +188,7 @@ export function About({ onNavigate }) {
       <div style={{maxWidth:1200,margin:'0 auto',padding:'55px 22px'}}>
         <div style={{textAlign:'center',marginBottom:48}}>
           <div style={{display:'inline-block',fontFamily:"'JetBrains Mono',monospace",fontSize:'0.68rem',letterSpacing:3,textTransform:'uppercase',color:'var(--cyan)',marginBottom:11,padding:'3px 11px',border:'1px solid rgba(0,210,255,0.14)',borderRadius:20,background:'rgba(0,210,255,0.04)'}}>{t('about_badge')}</div>
-          <h2 style={{fontSize:'clamp(1.55rem,2.8vw,2.3rem)',fontWeight:900,marginBottom:9}}>{t('about_title')}</h2>
+          <h2 style={{fontSize:'clamp(1.55rem,2.8vw,2.3rem)',fontWeight:900,marginBottom:9,direction:'ltr'}}>{t('about_title')}</h2>
         </div>
         {/* الرؤية */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:50,alignItems:'center',marginBottom:60}}>
