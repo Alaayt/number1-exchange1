@@ -1,9 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Orbitron:wght@700;900&family=JetBrains+Mono:wght@400;700&display=swap');
-@import "tailwindcss";
 
-/* ══════════════════════════════════════════
-   DARK THEME — الثيم الداكن (الافتراضي)
-══════════════════════════════════════════ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* DARK THEME */
 :root {
   --bg:        #030810;
   --card:      rgba(6,15,30,0.93);
@@ -25,36 +26,28 @@
   --ease:      cubic-bezier(0.22,1,0.36,1);
 }
 
-/* ══════════════════════════════════════════
-   LIGHT THEME — رمادي فاتح ونظيف
-══════════════════════════════════════════ */
+/* LIGHT THEME */
 html.light {
   --bg:        #eef0f4;
   --card:      #ffffff;
   --drop-bg:   #ffffff;
   --nav-bg:    rgba(255,255,255,0.97);
   --footer-bg: #dde1e8;
-
   --cyan:      #0077b6;
   --cyan-dim:  rgba(0,119,182,0.08);
   --gold:      #b5821a;
   --green:     #1a7a52;
   --red:       #c0392b;
   --purple:    #5b3abf;
-
   --border-1:  rgba(0,0,0,0.09);
   --border-2:  rgba(0,119,182,0.30);
-
   --text-1:    #0d1b2a;
   --text-2:    #3a5068;
   --text-3:    #8a9bb0;
-
   --shadow:    rgba(0,0,0,0.08);
 }
 
-/* ══════════════════════════════════════════
-   RESET & BASE
-══════════════════════════════════════════ */
+/* RESET & BASE */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html { scroll-behavior:smooth; }
 
@@ -68,7 +61,7 @@ body {
   direction: rtl;
 }
 
-/* ══ خلفية الداكن ══ */
+/* Dark BG */
 html:not(.light) body::before {
   content: '';
   position: fixed;
@@ -95,7 +88,7 @@ html:not(.light) body::after {
   animation: scanline 10s linear infinite;
 }
 
-/* ══ خلفية الفاتح ══ */
+/* Light BG */
 html.light body::before {
   content: '';
   position: fixed;
@@ -109,34 +102,15 @@ html.light body::before {
 }
 html.light body::after { display:none; }
 
-/* ══════════════════════════════════════════
-   LIGHT — بطاقات بظل واضح
-══════════════════════════════════════════ */
-html.light [style*="background:'var(--card)'"],
-html.light [style*='background:"var(--card)"'],
-html.light [style*="background:\"var(--card)\""] {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07) !important;
-}
-
-/* ══ Navbar فاتح ══ */
+/* Light cards */
 html.light nav {
   border-bottom: 1px solid rgba(0,0,0,0.08) !important;
   box-shadow: 0 2px 16px rgba(0,0,0,0.06) !important;
 }
-
-/* ══ Footer فاتح — متناسق مع الخلفية ══ */
 html.light footer {
   background: #dde1e8 !important;
   border-top: 1px solid rgba(0,0,0,0.10) !important;
 }
-
-/* ══ Ticker فاتح ══ */
-html.light [style*="sticky"][style*="top:0"] {
-  background: rgba(255,255,255,0.95) !important;
-  border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-}
-
-/* ══ Inputs فاتح ══ */
 html.light input:not([type="checkbox"]):not([type="radio"]),
 html.light textarea {
   background: #f5f7fa !important;
@@ -152,65 +126,19 @@ html.light textarea:focus {
   border-color: rgba(0,119,182,0.4) !important;
   box-shadow: 0 0 0 3px rgba(0,119,182,0.08) !important;
 }
-
-/* ══ Dropdown فاتح ══ */
-html.light [style*="--drop-bg"] {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.14) !important;
-  border-color: rgba(0,0,0,0.10) !important;
-}
-
-/* ══ Feature cards — ظل في الفاتح ══ */
-html.light [style*="borderRadius:20"][style*="textAlign:'center'"] {
-  box-shadow: 0 2px 16px rgba(0,0,0,0.06) !important;
-  border-color: rgba(0,0,0,0.07) !important;
-}
-
-/* ══ أيقونات الميزات في الفاتح ══ */
-html.light [style*="borderRadius:18"][style*="cyan-dim"] {
-  background: rgba(0,119,182,0.10) !important;
-  border-color: rgba(0,119,182,0.15) !important;
-}
-
-/* ══ أزرار الإجراءات تبقى بيضاء ══ */
 html.light button[style*="linear-gradient(135deg,#009fc0"],
 html.light button[style*="linear-gradient(135deg,#00b8d9"],
 html.light button[style*="linear-gradient(135deg,#00c97a"] {
   color: #fff !important;
 }
 
-/* ══ شريط السعر في الفاتح ══ */
-html.light [style*="rgba(200,168,75,0.05)"] {
-  background: rgba(0,119,182,0.04) !important;
-  border-color: rgba(0,119,182,0.15) !important;
-}
-
-/* ══ الـ Live badge فاتح ══ */
-html.light [style*="rgba(0,229,160,0.07)"] {
-  background: rgba(26,122,82,0.08) !important;
-  border-color: rgba(26,122,82,0.20) !important;
-}
-
-/* ══ modal overlay ══ */
-html.light [style*="rgba(0,0,0,0.78)"] {
-  background: rgba(0,0,0,0.5) !important;
-}
-
-/* ══ Promo banner فاتح ══ */
-html.light [style*="rgba(200,168,75,0.08)"] {
-  background: rgba(181,130,26,0.07) !important;
-}
-
-/* ══════════════════════════════════════════
-   SCROLLBAR
-══════════════════════════════════════════ */
+/* SCROLLBAR */
 ::-webkit-scrollbar       { width:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border-2); border-radius:10px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--cyan); }
 
-/* ══════════════════════════════════════════
-   ANIMATIONS
-══════════════════════════════════════════ */
+/* ANIMATIONS */
 @keyframes scanline    { to { background-position: 0 120px; } }
 @keyframes blink       { 0%,100%{opacity:1} 50%{opacity:0.2} }
 @keyframes pageIn      { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
@@ -228,9 +156,7 @@ html.light [style*="rgba(200,168,75,0.08)"] {
   50%     { opacity:0.85; transform:translate(-50%,-50%) rotateX(80deg) scale(1.14); }
 }
 
-/* ══════════════════════════════════════════
-   UTILITIES
-══════════════════════════════════════════ */
+/* UTILITIES */
 .ripple {
   position:absolute; border-radius:50%;
   background:rgba(255,255,255,0.18);
@@ -238,9 +164,7 @@ html.light [style*="rgba(200,168,75,0.08)"] {
   pointer-events:none;
 }
 
-/* ══════════════════════════════════════════
-   EXCHANGE FORM — REDESIGN
-══════════════════════════════════════════ */
+/* EXCHANGE FORM */
 .ex-card {
   background: var(--card);
   border: 1px solid var(--border-1);
@@ -401,3 +325,42 @@ html.light [style*="rgba(200,168,75,0.08)"] {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes flashFade { 0%{opacity:1} 100%{opacity:0} }
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes modalIn {
+  from { opacity:0; transform:translateY(20px) scale(.97); }
+  to   { opacity:1; transform:none; }
+}
+
+/* Rates grid responsive */
+@media (max-width: 900px) {
+  .rates-grid { grid-template-columns: repeat(2,1fr) !important; }
+}
+@media (max-width: 560px) {
+  .rates-grid { grid-template-columns: 1fr !important; }
+}
+
+/* News grid responsive */
+@media (max-width: 860px) {
+  .news-featured { grid-column: span 1 !important; }
+  .news-grid { grid-template-columns: repeat(2,1fr) !important; }
+  [data-testid="news-featured-article"] > div { grid-template-columns: 1fr !important; }
+  [data-testid="news-featured-article"] > div > div:first-child { min-height: 160px !important; }
+}
+@media (max-width: 560px) {
+  .news-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Support cards responsive */
+@media (max-width: 760px) {
+  .support-cards { grid-template-columns: 1fr !important; }
+}
+
+/* About Page Responsive */
+@media (max-width: 768px) {
+  .ab-story-grid,
+  .ab-values-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
+}

@@ -185,10 +185,48 @@ const handleSendMethodChange = (newMethod) => {
 <CurrencyDropdown options={SEND_METHODS} selected={sendMethod} onSelect={handleSendMethodChange} />            </div>
           </div>
 
-          {/* ── سهم التبادل ── */}
+          {/* ── سهم التبادل (مزدوج - اضغط لعكس العملية) ── */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px 0' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 11, background: 'rgba(0,210,255,0.07)', border: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', color: 'var(--cyan)' }}>
-              ↓
+            <div
+              onClick={() => {
+                // عكس وسيلتي الإرسال والاستلام
+                const newSend = SEND_METHODS.find(m => m.id === receiveMethod.id) || SEND_METHODS[0]
+                const newReceive = RECEIVE_METHODS.find(m => m.id === sendMethod.id) || RECEIVE_METHODS[0]
+                handleSendMethodChange(newSend)
+                setReceiveMethod(newReceive)
+              }}
+              title="عكس العملية"
+              style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: 'rgba(0,210,255,0.07)',
+                border: '1px solid var(--border-1)',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                gap: 0, cursor: 'pointer',
+                transition: 'all 0.22s',
+                color: 'var(--cyan)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(0,210,255,0.15)'
+                e.currentTarget.style.borderColor = 'var(--border-2)'
+                e.currentTarget.style.transform = 'scale(1.1)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(0,210,255,0.07)'
+                e.currentTarget.style.borderColor = 'var(--border-1)'
+                e.currentTarget.style.transform = 'scale(1)'
+              }}
+            >
+              {/* سهم للأعلى */}
+              <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
+                <path d="M6.5 1L1 6M6.5 1L12 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M6.5 1V9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+              {/* سهم للأسفل */}
+              <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
+                <path d="M6.5 9L1 4M6.5 9L12 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M6.5 9V1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
             </div>
           </div>
 

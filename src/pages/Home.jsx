@@ -408,86 +408,54 @@ function PromoBanner() {
   )
 }
 
-// ══ Exchange Picker Modal — نافذة اختيار العملة الاحترافية ══
-function ExchangePickerModal({isOpen, onClose, options, selected, onSelect, titleAr, titleEn}) {
+// ══ Currency Inline Dropdown — قائمة منسدلة بسيطة داخل الصفحة ══
+function CurrencyInlineDropdown({options, selected, onSelect, open, onClose}) {
   const {lang,t}=useLang()
-  const [query,setQuery]=useState("")
-  const inputRef=useRef(null)
-
+  const ref=useRef(null)
   useEffect(()=>{
-    if(isOpen){ setQuery(""); setTimeout(()=>inputRef.current&&inputRef.current.focus(),80) }
-  },[isOpen])
-  useEffect(()=>{
-    const fn=e=>{ if(e.key==="Escape") onClose() }
-    document.addEventListener("keydown",fn); return()=>document.removeEventListener("keydown",fn)
-  },[onClose])
-
-  const filtered=options.filter(c=>{
-    const q=query.toLowerCase()
-    return c.name.toLowerCase().includes(q)||(c.nameEn&&c.nameEn.toLowerCase().includes(q))||(c.symbol&&c.symbol.toLowerCase().includes(q))
-  })
-
-  const handleOverlay=e=>{ if(e.target===e.currentTarget) onClose() }
-
+    if(!open) return
+    const fn=e=>{ if(ref.current&&!ref.current.contains(e.target)) onClose() }
+    document.addEventListener("mousedown",fn)
+    return()=>document.removeEventListener("mousedown",fn)
+  },[open,onClose])
+  if(!open) return null
   return (
-    <div className={"ex-picker-overlay"+(isOpen?" open":"")} onClick={handleOverlay}>
-      <div className="ex-picker-modal">
-        {/* Header */}
-        <div style={{padding:"18px 20px 14px",borderBottom:"1px solid var(--border-1)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:9,fontSize:"0.93rem",fontWeight:800}}>
-            <div style={{width:28,height:28,borderRadius:8,background:"rgba(0,210,255,0.1)",border:"1px solid rgba(0,210,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.9rem"}}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div>
-            {lang==="ar"?titleAr:titleEn}
-          </div>
-          <button onClick={onClose} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,0.04)",border:"1px solid var(--border-1)",color:"var(--text-3)",fontSize:"1rem",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s"}}
-            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,61,90,0.12)";e.currentTarget.style.color="var(--red)"}}
-            onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.color="var(--text-3)"}}>✕</button>
-        </div>
-        {/* Search */}
-        <div style={{padding:"13px 16px 9px",position:"relative"}}>
-          <span style={{position:"absolute",left:28,top:"50%",transform:"translateY(-50%)",color:"var(--text-3)",pointerEvents:"none",display:"flex",alignItems:"center"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-          </span>
-          <input ref={inputRef} className="ex-picker-search" value={query} onChange={e=>setQuery(e.target.value)}
-            placeholder={lang==="ar"?"ابحث عن عملة...":"Search currency..."}/>
-        </div>
-        {/* List */}
-        <div className="ex-picker-list">
-          {filtered.length===0&&(
-            <div style={{textAlign:"center",padding:"22px 0",color:"var(--text-3)",fontSize:"0.82rem"}}>{lang==="ar"?"لا توجد نتائج":"No results"}</div>
-          )}
-          {filtered.map(c=>{
-            const isSel=selected.id===c.id
-            return (
-              <div key={c.id} className={"ex-picker-item"+(isSel?" selected":"")} onClick={()=>{onSelect(c);onClose()}}>
-                {/* Coin icon — big */}
-                <div style={{width:44,height:44,borderRadius:"50%",flexShrink:0,overflow:"hidden",boxShadow:"0 2px 10px rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",background:c.color}}>
-                  <CurrencyIcon method={c} size={44}/>
-                </div>
-                {/* Meta */}
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:"0.9rem",fontWeight:800,lineHeight:1.2}}>{lang==="ar"?c.name:c.nameEn||c.name}</div>
-                  <div style={{fontSize:"0.7rem",color:"var(--text-3)",marginTop:2,display:"flex",alignItems:"center",gap:4,fontFamily:"'JetBrains Mono',monospace"}}>
-                    {c.flag&&<span>{c.flag}</span>}
-                    <span>{c.symbol}</span>
-                    <span>·</span>
-                    <span>{c.type==="egp"?t("curr_egp"):t("curr_crypto")}</span>
-                  </div>
-                </div>
-                {/* Check */}
-                <div style={{width:22,height:22,borderRadius:"50%",background:"var(--cyan)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,opacity:isSel?1:0,transition:"opacity .15s"}}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
+    <div ref={ref} style={{
+      position:"absolute", top:"calc(100% + 6px)", right:0, left:0,
+      background:"var(--drop-bg,#0d1520)",
+      border:"1px solid var(--border-2)",
+      borderRadius:12,
+      boxShadow:"0 16px 48px rgba(0,0,0,0.75)",
+      zIndex:999,
+      overflow:"hidden",
+      minWidth:200,
+    }}>
+      {options.map(c=>{
+        const isSel=selected.id===c.id
+        return (
+          <div key={c.id} onClick={()=>{onSelect(c);onClose()}}
+            style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",cursor:"pointer",
+              background:isSel?"var(--cyan-dim)":"transparent",transition:"background .15s"}}
+            onMouseEnter={e=>{if(!isSel)e.currentTarget.style.background="var(--cyan-dim)"}}
+            onMouseLeave={e=>{if(!isSel)e.currentTarget.style.background="transparent"}}>
+            <div style={{width:34,height:34,borderRadius:"50%",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",background:c.color||"#222"}}>
+              <CurrencyIcon method={c} size={34}/>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:"0.87rem",fontWeight:700,color:"var(--text-1)",lineHeight:1.2}}>{lang==="ar"?c.name:c.nameEn||c.name}</div>
+              <div style={{fontSize:"0.65rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",marginTop:2}}>
+                {c.symbol} · {c.type==="egp"?t("curr_egp"):t("curr_crypto")}
               </div>
-            )
-          })}
-        </div>
-      </div>
+            </div>
+            {isSel&&(
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><polyline points="20 6 9 17 4 12"/></svg>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
-
 // ══ Confirm Modal — مع صور ══
 function ConfirmModal({isOpen,onClose,orderData}) {
   const {t,lang}=useLang()
@@ -914,7 +882,8 @@ function ExchangeForm() {
   const [tos,setTos]=useState(false)
   const [modalOpen,setModalOpen]=useState(false)
   const [orderData,setOrderData]=useState(null)
-  const [pickerTarget,setPickerTarget]=useState(null) // "send" | "receive"
+  const [openPicker,setOpenPicker]=useState(null) // "send" | "receive"
+  const [swapping,setSwapping]=useState(false)
 
   const isEgp=sendMethod.type==="egp"
   const isUSDT=sendMethod.id==="usdt-trc"
@@ -959,13 +928,7 @@ function ExchangeForm() {
 
   return (
     <>
-      {/* Pickers */}
-      <ExchangePickerModal isOpen={pickerTarget==="send"} onClose={()=>setPickerTarget(null)}
-        options={SEND_METHODS} selected={sendMethod} onSelect={handleSendMethodChange}
-        titleAr="اختر عملة الإرسال" titleEn="Select Send Currency"/>
-      <ExchangePickerModal isOpen={pickerTarget==="receive"} onClose={()=>setPickerTarget(null)}
-        options={RECEIVE_METHODS} selected={receiveMethod} onSelect={setReceiveMethod}
-        titleAr="اختر عملة الاستلام" titleEn="Select Receive Currency"/>
+
 
       {/* ─── Internal 2-col grid ─── */}
       <div className="ex-inner-grid" style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:18,alignItems:"start"}}>
@@ -1068,15 +1031,18 @@ function ExchangeForm() {
 
             <div style={{display:"flex",gap:10,alignItems:"stretch"}}>
               {/* Currency selector */}
-              <div className="ex-currency-box" onClick={()=>setPickerTarget("send")}>
-                <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,overflow:"hidden",transition:"transform .2s"}}>
-                  <CurrencyIcon method={sendMethod} size={32}/>
+              <div style={{position:"relative"}}>
+                <div className="ex-currency-box" onClick={()=>setOpenPicker(openPicker==="send"?null:"send")}>
+                  <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,overflow:"hidden",transition:"transform .2s"}}>
+                    <CurrencyIcon method={sendMethod} size={32}/>
+                  </div>
+                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:2,minWidth:0}}>
+                    <span style={{fontSize:"13.5px",fontWeight:700,color:"var(--text-1)",lineHeight:1}}>{sendMethod.symbol||sendMethod.name.split(" ")[0]}</span>
+                    <span style={{fontSize:"10px",color:"var(--text-3)",lineHeight:1}}>{lang==="ar"?sendMethod.name:sendMethod.nameEn||sendMethod.name}</span>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" style={{transition:"transform .2s",transform:openPicker==="send"?"rotate(180deg)":"none"}}><polyline points="2,4 7,9 12,4"/></svg>
                 </div>
-                <div style={{flex:1,display:"flex",flexDirection:"column",gap:2,minWidth:0}}>
-                  <span style={{fontSize:"13.5px",fontWeight:700,color:"var(--text-1)",lineHeight:1}}>{sendMethod.symbol||sendMethod.name.split(" ")[0]}</span>
-                  <span style={{fontSize:"10px",color:"var(--text-3)",lineHeight:1}}>{lang==="ar"?sendMethod.name:sendMethod.nameEn||sendMethod.name}</span>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round"><polyline points="2,4 7,9 12,4"/></svg>
+                <CurrencyInlineDropdown options={SEND_METHODS} selected={sendMethod} onSelect={handleSendMethodChange} open={openPicker==="send"} onClose={()=>setOpenPicker(null)}/>
               </div>
               {/* Amount */}
               <div style={{flex:1,position:"relative"}}>
@@ -1096,16 +1062,33 @@ function ExchangeForm() {
           {/* SWAP ROW */}
           <div style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0"}}>
             <div style={{flex:1,height:1,background:"var(--border-1)"}}/>
-            <button className="ex-swap-btn" title={lang==="ar"?"تبديل العملات":"Swap currencies"} onClick={()=>{
-              const newSend=SEND_METHODS.find(m=>m.id===receiveMethod.id.replace("-recv","").replace("usdt","usdt-trc").replace("mgo","mgo-send"))
-              if(newSend){ setSendMethod(newSend); setReceiveMethod(receiveMethod) }
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                {/* سهم لأعلى */}
-                <polyline points="7 10 12 5 17 10"/>
-                {/* سهم لأسفل */}
-                <polyline points="7 14 12 19 17 14"/>
-              </svg>
+            <button className="ex-swap-btn" title={lang==="ar"?"تبديل العملات":"Swap currencies"} onClick={() => { 
+              if(swapping) return
+              setSwapping(true)
+
+              // Map receive → send and send → receive
+              const recvToSend = {"mgo-recv":"mgo-send","usdt-recv":"usdt-trc"}
+              const sendToRecv = {"mgo-send":"mgo-recv","usdt-trc":"usdt-recv","vodafone":"mgo-recv","instapay":"mgo-recv","etisalat":"mgo-recv"}
+              const newSendId = recvToSend[receiveMethod.id]
+              const newRecvId = sendToRecv[sendMethod.id]
+              if(newSendId && newRecvId){
+                const newSend = SEND_METHODS.find(m=>m.id===newSendId)
+                const newRecv = RECEIVE_METHODS.find(m=>m.id===newRecvId)
+                if(newSend && newRecv){ setSendMethod(newSend); setReceiveMethod(newRecv); setUserPhone(""); setRecipientId("") }
+              }
+              setTimeout(()=>setSwapping(false),500)
+            }}
+            >
+              <span style={{display:"flex",alignItems:"center",gap:5,transition:"transform 0.5s cubic-bezier(.22,1,.36,1)",transform:swapping?"rotate(180deg)":"none"}}>
+                {/* السهم الأيسر — لأعلى */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="20" x2="8" y2="4"/><polyline points="4 8 8 4 12 8"/>
+                </svg>
+                {/* السهم الأيمن — لأسفل */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="16" y1="4" x2="16" y2="20"/><polyline points="12 16 16 20 20 16"/>
+                </svg>
+              </span>
             </button>
             <div style={{flex:1,height:1,background:"var(--border-1)"}}/>
           </div>
@@ -1128,15 +1111,18 @@ function ExchangeForm() {
             </div>
 
             <div style={{display:"flex",gap:10,alignItems:"stretch"}}>
-              <div className="ex-currency-box" onClick={()=>setPickerTarget("receive")}>
-                <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,overflow:"hidden"}}>
-                  <CurrencyIcon method={receiveMethod} size={32}/>
+              <div style={{position:"relative"}}>
+                <div className="ex-currency-box" onClick={()=>setOpenPicker(openPicker==="receive"?null:"receive")}>
+                  <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,overflow:"hidden"}}>
+                    <CurrencyIcon method={receiveMethod} size={32}/>
+                  </div>
+                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:2,minWidth:0}}>
+                    <span style={{fontSize:"13.5px",fontWeight:700,color:"var(--text-1)",lineHeight:1}}>{receiveMethod.symbol||receiveMethod.name.split(" ")[0]}</span>
+                    <span style={{fontSize:"10px",color:"var(--text-3)",lineHeight:1}}>{lang==="ar"?receiveMethod.name:receiveMethod.nameEn||receiveMethod.name}</span>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" style={{transition:"transform .2s",transform:openPicker==="receive"?"rotate(180deg)":"none"}}><polyline points="2,4 7,9 12,4"/></svg>
                 </div>
-                <div style={{flex:1,display:"flex",flexDirection:"column",gap:2,minWidth:0}}>
-                  <span style={{fontSize:"13.5px",fontWeight:700,color:"var(--text-1)",lineHeight:1}}>{receiveMethod.symbol||receiveMethod.name.split(" ")[0]}</span>
-                  <span style={{fontSize:"10px",color:"var(--text-3)",lineHeight:1}}>{lang==="ar"?receiveMethod.name:receiveMethod.nameEn||receiveMethod.name}</span>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round"><polyline points="2,4 7,9 12,4"/></svg>
+                <CurrencyInlineDropdown options={RECEIVE_METHODS} selected={receiveMethod} onSelect={setReceiveMethod} open={openPicker==="receive"} onClose={()=>setOpenPicker(null)}/>
               </div>
               <div style={{flex:1,position:"relative"}}>
                 <input className="ex-amount-input ex-readonly" type="number" readOnly value={receiveAmount} placeholder="0.00"/>
