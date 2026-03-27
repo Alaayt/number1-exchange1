@@ -2,16 +2,23 @@
 import { useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 
-import Ticker     from './components/common/Ticker'
 import Navbar     from './components/common/Navbar'
+import Footer     from './components/common/Footer'
 import AuthModal  from './components/common/AuthModal'
 import SupportFAB from './components/common/SupportFAB'
 
-// ✅ لا Footer هنا — كل صفحة تدير Footer خاص بها
-import Home    from './pages/Home'
-import Rates   from './pages/Rates'
-import { News, Support, About } from './pages/OtherPages'
+// Pages
+import Home       from './pages/Home'
+import Rates      from './pages/Rates'
+import HowItWorks from './pages/HowItWorks'
+import Reviews    from './pages/Reviews'
+import Contact    from './pages/Contact'
+import FAQ        from './pages/FAQ'
+import About      from './pages/About'
+import OrderTrack from './pages/OrderTrack'
+import NotFound   from './pages/NotFound'
 
+// Legal
 import Terms   from './pages/legal/Terms'
 import Privacy from './pages/legal/Privacy'
 import AML     from './pages/legal/AML'
@@ -27,26 +34,34 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Ticker />
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ✅ لا Ticker — تم حذفه */}
       <Navbar onOpenAuth={openAuth} />
 
-      <Routes>
-        <Route path="/"        element={<Home />} />
-        <Route path="/rates"   element={<Rates />} />
-        <Route path="/news"    element={<News />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/about"   element={<About />} />
+      <main style={{ flex: 1 }}>
+        <Routes>
+          <Route path="/"             element={<Home onOpenAuth={openAuth} />} />
+          <Route path="/rates"        element={<Rates />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/reviews"      element={<Reviews />} />
+          <Route path="/contact"      element={<Contact />} />
+          <Route path="/faq"          element={<FAQ />} />
+          <Route path="/about"        element={<About />} />
+          <Route path="/track"        element={<OrderTrack />} />
+          <Route path="/terms"        element={<Terms />} />
+          <Route path="/privacy"      element={<Privacy />} />
+          <Route path="/aml"          element={<AML />} />
+          <Route path="/cookies"      element={<Cookies />} />
+          <Route path="*"             element={<NotFound />} />
+        </Routes>
+      </main>
 
-        <Route path="/terms"   element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/aml"     element={<AML />} />
-        <Route path="/cookies" element={<Cookies />} />
-      </Routes>
+      <Footer />
 
       <AuthModal
         isOpen={authOpen}
-        initialTab={authTab}
+        type={authTab}
         onClose={() => setAuthOpen(false)}
       />
 

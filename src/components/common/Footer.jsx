@@ -1,138 +1,125 @@
 // src/components/common/Footer.jsx
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import useLang from '../../context/useLang'
 
 function Footer() {
   const { t, lang } = useLang()
+  const navigate = useNavigate()
 
-  const links = [
-    { label: lang === 'ar' ? 'الرئيسية'    : 'Home',    to: '/'        },
-    { label: lang === 'ar' ? 'الأسعار'     : 'Rates',   to: '/rates'   },
-    { label: lang === 'ar' ? 'الأخبار'     : 'News',    to: '/news'    },
-    { label: lang === 'ar' ? 'الدعم'       : 'Support', to: '/support' },
-    { label: lang === 'ar' ? 'عن المنصة'   : 'About',   to: '/about'   },
+  const isAr = lang === 'ar'
+
+  const companyLinks = [
+    { label: isAr ? 'من نحن'       : 'About Us',     path: '/about'        },
+    { label: isAr ? 'كيف تعمل'     : 'How It Works',  path: '/how-it-works'  },
+    { label: isAr ? 'التقييمات'    : 'Reviews',       path: '/reviews'      },
+    { label: isAr ? 'تواصل معنا'   : 'Contact Us',    path: '/contact'      },
+    { label: isAr ? 'الأسئلة الشائعة' : 'FAQ',        path: '/faq'          },
   ]
 
-  const legal = [
-    { label: lang === 'ar' ? 'شروط الخدمة' : 'Terms',   to: '/terms'   },
-    { label: lang === 'ar' ? 'الخصوصية'    : 'Privacy', to: '/privacy' },
-    { label: 'AML',                                       to: '/aml'     },
-    { label: lang === 'ar' ? 'الكوكيز'     : 'Cookies', to: '/cookies' },
+  const legalLinks = [
+    { label: isAr ? 'شروط الخدمة'     : 'Terms of Service', path: '/terms'   },
+    { label: isAr ? 'سياسة الخصوصية'  : 'Privacy Policy',   path: '/privacy' },
+    { label: 'AML / KYC Policy',                              path: '/aml'     },
+    { label: isAr ? 'سياسة الكوكيز'   : 'Cookie Policy',    path: '/cookies' },
   ]
+
+  const supportLinks = [
+    { label: isAr ? 'الأسعار'      : 'Rates',        path: '/rates'   },
+    { label: isAr ? 'تتبع الطلب'   : 'Track Order',  path: '/track'   },
+    { label: isAr ? 'الدعم الفني'  : 'Help Center',  path: '/contact' },
+  ]
+
+  const LinkItem = ({ label, path }) => (
+    <button onClick={() => navigate(path)}
+      style={{ display: 'block', width: '100%', textAlign: isAr ? 'right' : 'left', background: 'none', border: 'none', fontSize: '0.82rem', color: 'var(--text-3)', cursor: 'pointer', padding: '3px 0', fontFamily: "'Tajawal',sans-serif", transition: 'color 0.2s', marginBottom: 6 }}
+      onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
+      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}>
+      {label}
+    </button>
+  )
+
+  const ColTitle = ({ text }) => (
+    <h4 style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '0.65rem', letterSpacing: 2, textTransform: 'uppercase', color: 'var(--cyan)', margin: '0 0 14px', paddingBottom: 8, borderBottom: '1px solid var(--border-1)' }}>
+      {text}
+    </h4>
+  )
 
   return (
-    <footer style={{
-      background: 'var(--footer-bg, var(--card))',
-      borderTop: '1px solid var(--border-1)',
-      padding: '50px 0 26px',
-      marginTop: 60,
-    }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 22px' }}>
+    <footer style={{ background: 'var(--card)', borderTop: '1px solid var(--border-1)', padding: '48px 0 22px', direction: isAr ? 'rtl' : 'ltr' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
 
-        {/* Top row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr 1fr',
-          gap: 38,
-          marginBottom: 36,
-        }}>
+        {/* Top grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr 1fr 1fr', gap: 40, marginBottom: 36 }}>
+
           {/* Brand */}
           <div>
-            <Link to="/" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 12,
-              textDecoration: 'none', marginBottom: 12,
-            }}>
-              <div style={{
-                fontFamily: "'Orbitron',sans-serif", fontWeight: 900,
-                fontSize: '2.1rem',
-                background: 'linear-gradient(160deg,#00eeff,#008fb3)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                filter: 'drop-shadow(0 0 14px rgba(0,210,255,0.9))',
-              }}>1</div>
-              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1, gap: 3 }}>
-                <span style={{
-                  fontFamily: "'Orbitron',sans-serif", fontSize: '1.05rem',
-                  fontWeight: 900, color: 'var(--cyan)', letterSpacing: 2,
-                }}>NUMBER 1</span>
-                <span style={{
-                  fontSize: '0.6rem', color: 'var(--text-3)', letterSpacing: 3,
-                  textTransform: 'uppercase', fontFamily: "'JetBrains Mono',monospace",
-                }}>EXCHANGE</span>
-              </div>
-            </Link>
-            <p style={{
-              fontSize: '0.82rem', color: 'var(--text-2)',
-              lineHeight: 1.75, maxWidth: 290,
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer' }} onClick={() => navigate('/')}>
+              <span style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.15rem', fontWeight: 900, color: 'var(--cyan)', letterSpacing: 2 }}>NUMBER 1</span>
+              <span style={{ fontSize: '0.55rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 2 }}>EXCHANGE</span>
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-3)', lineHeight: 1.8, margin: '0 0 16px', maxWidth: 250, fontFamily: "'Tajawal',sans-serif" }}>
               {t('footer_desc')}
             </p>
+            {/* Social */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { icon: '✈️', label: 'Telegram', href: 'https://t.me/' },
+                { icon: '💬', label: 'WhatsApp', href: 'https://wa.me/' },
+                { icon: '📧', label: 'Email',    href: 'mailto:support@number1.exchange' },
+              ].map(s => (
+                <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border-1)', color: 'var(--text-3)', fontSize: '0.72rem', textDecoration: 'none', fontFamily: "'JetBrains Mono',monospace", transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-3)' }}>
+                  {s.icon}
+                </a>
+              ))}
+            </div>
           </div>
 
-          {/* Pages */}
+          {/* Company */}
           <div>
-            <h4 style={{
-              fontFamily: "'JetBrains Mono',monospace", fontSize: '0.68rem',
-              letterSpacing: 2, textTransform: 'uppercase',
-              color: 'var(--text-3)', marginBottom: 15,
-            }}>{t('footer_links')}</h4>
-            {links.map((l, i) => (
-              <Link key={i} to={l.to} style={{
-                display: 'block', fontSize: '0.8rem', color: 'var(--text-2)',
-                textDecoration: 'none', marginBottom: 8, transition: 'color 0.2s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-2)'}>
-                {l.label}
-              </Link>
-            ))}
+            <ColTitle text={isAr ? 'الشركة' : 'Company'} />
+            {companyLinks.map(l => <LinkItem key={l.path} {...l} />)}
           </div>
 
           {/* Legal */}
           <div>
-            <h4 style={{
-              fontFamily: "'JetBrains Mono',monospace", fontSize: '0.68rem',
-              letterSpacing: 2, textTransform: 'uppercase',
-              color: 'var(--text-3)', marginBottom: 15,
-            }}>{t('footer_legal')}</h4>
-            {legal.map((l, i) => (
-              <Link key={i} to={l.to} style={{
-                display: 'block', fontSize: '0.8rem', color: 'var(--text-2)',
-                textDecoration: 'none', marginBottom: 8, transition: 'color 0.2s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-2)'}>
-                {l.label}
-              </Link>
-            ))}
+            <ColTitle text={isAr ? 'قانوني' : 'Legal'} />
+            {legalLinks.map(l => <LinkItem key={l.path} {...l} />)}
           </div>
 
-          {/* Contact */}
+          {/* Support */}
           <div>
-            <h4 style={{
-              fontFamily: "'JetBrains Mono',monospace", fontSize: '0.68rem',
-              letterSpacing: 2, textTransform: 'uppercase',
-              color: 'var(--text-3)', marginBottom: 15,
-            }}>{t('footer_contact')}</h4>
-            {[
-              { label: 'support@number1.exchange' },
-              { label: t('footer_chat') },
-              { label: t('footer_tg') },
-            ].map((l, i) => (
-              <span key={i} style={{
-                display: 'block', fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: 8,
-              }}>{l.label}</span>
-            ))}
+            <ColTitle text={isAr ? 'الدعم' : 'Support'} />
+            {supportLinks.map(l => <LinkItem key={l.path} {...l} />)}
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.15)' }}>
+              <div style={{ fontSize: '0.65rem', color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace', letterSpacing: 1, marginBottom: 3" }}>SUPPORT EMAIL</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-2)', fontFamily: "'JetBrains Mono',monospace" }}>support@number1.exchange</div>
+            </div>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div style={{
-          borderTop: '1px solid var(--border-1)', paddingTop: 20,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          fontSize: '0.75rem', color: 'var(--text-3)',
-          fontFamily: "'JetBrains Mono',monospace",
-        }}>
-          <span>{t('footer_copy')} — ALL RIGHTS RESERVED</span>
+        <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>
+            {t('footer_copy')} — ALL RIGHTS RESERVED
+          </span>
+          <div style={{ display: 'flex', gap: 16 }}>
+            {[
+              { label: 'Terms',   path: '/terms'   },
+              { label: 'Privacy', path: '/privacy' },
+              { label: 'AML',     path: '/aml'     },
+              { label: 'Cookies', path: '/cookies' },
+            ].map(l => (
+              <button key={l.path} onClick={() => navigate(l.path)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: '0.7rem', cursor: 'pointer', fontFamily: "'JetBrains Mono',monospace", padding: 0, transition: 'color 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--cyan)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}>
+                {l.label}
+              </button>
+            ))}
+          </div>
         </div>
 
       </div>

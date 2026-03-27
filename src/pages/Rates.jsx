@@ -180,7 +180,7 @@ function MarketStat({ label, value, sub, color, icon }) {
   )
 }
 
-export function Rates() {
+export default function Rates() {
   const { t, lang } = useLang()
   const [rates, setRates] = useState(() =>
     RATES_DATA.map(r => ({ ...r, color: COIN_COLORS[r.symbol] || '#00d2ff', up: true }))

@@ -6,26 +6,32 @@ function CurrencyDropdown({ options, selected, onSelect }) {
   const ref = useRef(null)
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    // ✅ نستمع على click على document لإغلاق القائمة
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
   }, [])
 
   const CoinIcon = ({ method, size = 28 }) => (
     <div style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }}>
-      <img
-        src={method.icon}
-        alt={method.name}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-      />
+      <img src={method.icon} alt={method.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
     </div>
   )
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      {/* زر الاختيار */}
+
+      {/* ✅ الزر يستخدم onMouseDown بدل onClick */}
+      {/* onMouseDown يشتغل قبل أي click event على document */}
       <div
-        onClick={() => setOpen(!open)}
+        onMouseDown={(e) => {
+          e.preventDefault() // ✅ يمنع الـ click event من الانطلاق بعده
+          setOpen(prev => !prev)
+        }}
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '7px 12px',
@@ -33,7 +39,8 @@ function CurrencyDropdown({ options, selected, onSelect }) {
           border: `1px solid ${open ? 'var(--border-2)' : 'var(--border-1)'}`,
           borderRadius: 9, cursor: 'pointer', transition: 'all 0.2s',
           flexShrink: 0, userSelect: 'none', minWidth: 155,
-        }}>
+        }}
+      >
         <CoinIcon method={selected} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)' }}>{selected.name}</div>
@@ -47,30 +54,26 @@ function CurrencyDropdown({ options, selected, onSelect }) {
         </svg>
       </div>
 
-      {/* القائمة السريعة البسيطة */}
+      {/* القائمة */}
       {open && (
         <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 6px)',
-          right: 0,
-          minWidth: 170,
-          background: 'var(--drop-bg, #0d1117)',
-          border: '1px solid var(--border-2)',
-          borderRadius: 12,
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+          minWidth: 170, background: 'var(--drop-bg, #0d1117)',
+          border: '1px solid var(--border-2)', borderRadius: 12,
           boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
-          zIndex: 500,
-          overflow: 'hidden',
-          padding: '4px',
+          zIndex: 500, overflow: 'hidden', padding: '4px',
         }}>
           {options.map(c => (
             <div
               key={c.id}
-              onClick={() => { onSelect(c); setOpen(false) }}
+              onMouseDown={(e) => {
+                e.preventDefault() // ✅ نفس الحل على كل عنصر
+                onSelect(c)
+                setOpen(false)
+              }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 9,
-                padding: '8px 10px',
-                cursor: 'pointer',
-                borderRadius: 8,
+                padding: '8px 10px', cursor: 'pointer', borderRadius: 8,
                 background: selected.id === c.id ? 'var(--cyan-dim)' : 'transparent',
                 transition: 'background 0.13s',
               }}

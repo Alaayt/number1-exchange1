@@ -59,9 +59,11 @@ body {
   min-height: 100vh;
   transition: background 0.4s, color 0.4s;
   direction: rtl;
+  /* ✅ إصلاح: position relative عشان pseudo-elements تكون خلف المحتوى */
+  position: relative;
 }
 
-/* Dark BG */
+/* ✅ إصلاح رئيسي: z-index سالب على الـ pseudo-elements حتى لا تغطي المحتوى */
 html:not(.light) body::before {
   content: '';
   position: fixed;
@@ -71,7 +73,7 @@ html:not(.light) body::before {
     radial-gradient(ellipse 60% 40% at 15% 85%, rgba(124,92,252,0.06), transparent 55%),
     #030810;
   pointer-events: none;
-  z-index: 0;
+  z-index: -2; /* ✅ كان 0، الآن -2 */
 }
 
 html:not(.light) body::after {
@@ -84,7 +86,7 @@ html:not(.light) body::after {
     rgba(0,210,255,0.01) 3px, rgba(0,210,255,0.01) 4px
   );
   pointer-events: none;
-  z-index: 1;
+  z-index: -1; /* ✅ كان 1، الآن -1 */
   animation: scanline 10s linear infinite;
 }
 
@@ -98,7 +100,7 @@ html.light body::before {
     radial-gradient(ellipse 50% 35% at 10% 90%, rgba(91,58,191,0.03), transparent 50%),
     #eef0f4;
   pointer-events: none;
-  z-index: 0;
+  z-index: -2; /* ✅ إصلاح */
 }
 html.light body::after { display:none; }
 
@@ -341,17 +343,6 @@ html.light button[style*="linear-gradient(135deg,#00c97a"] {
 }
 @media (max-width: 560px) {
   .rates-grid { grid-template-columns: 1fr !important; }
-}
-
-/* News grid responsive */
-@media (max-width: 860px) {
-  .news-featured { grid-column: span 1 !important; }
-  .news-grid { grid-template-columns: repeat(2,1fr) !important; }
-  [data-testid="news-featured-article"] > div { grid-template-columns: 1fr !important; }
-  [data-testid="news-featured-article"] > div > div:first-child { min-height: 160px !important; }
-}
-@media (max-width: 560px) {
-  .news-grid { grid-template-columns: 1fr !important; }
 }
 
 /* Support cards responsive */
