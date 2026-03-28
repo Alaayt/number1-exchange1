@@ -1,5 +1,6 @@
 //number1-exchange-main\src\components\common\AuthModal.jsx
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useAuth from '../../context/useAuth'
 import { AVATARS } from '../../context/AuthContext'
 import { authAPI } from '../../services/api'
@@ -85,19 +86,18 @@ function RegisterForm({ onSuccess, onSwitch }) {
     setTimeout(() => { setLoading(false); setStep(3) }, 800)
   }
 
-  // ✅ يتصل بالباكند الحقيقي
   const handleStep3 = async () => {
     if (code !== fakeCode) { setErr('الكود غير صحيح، تحقق من بريدك'); return }
     setErr('')
     setLoading(true)
     try {
-    const { data } = await authAPI.register({
-  name:     fullName.trim(),
-  email,
-  phone,
-  password,
-})
-onSuccess(data.user, data.token)
+      const { data } = await authAPI.register({
+        name:     fullName.trim(),
+        email,
+        phone,
+        password,
+      })
+      onSuccess(data.user, data.token)
     } catch (error) {
       setErr(error.response?.data?.message || 'حدث خطأ، حاول مرة أخرى')
     } finally {
@@ -207,14 +207,13 @@ function LoginForm({ onSuccess, onSwitch }) {
     direction:'ltr', textAlign:'left', transition:'border-color 0.2s',
   }
 
-  // ✅ يتصل بالباكند الحقيقي
   const handle = async () => {
     if (!email || !password) { setErr('يرجى تعبئة جميع الحقول'); return }
     setErr('')
     setLoading(true)
     try {
-     const { data } = await authAPI.login({ email, password })
-onSuccess(data.user, data.token)
+      const { data } = await authAPI.login({ email, password })
+      onSuccess(data.user, data.token)
     } catch (error) {
       setErr(error.response?.data?.message || 'بيانات غير صحيحة')
     } finally {
@@ -253,18 +252,27 @@ onSuccess(data.user, data.token)
 // ── Main Modal ───────────────────────────────────────────────
 function AuthModal({ isOpen, type, onClose, onSuccess }) {
   const { loginDirect } = useAuth()
+  const navigate = useNavigate()                    // ← جديد
   const [mode, setMode] = useState(type || 'register')
 
   useEffect(() => { setMode(type || 'register') }, [type])
 
   if (!isOpen) return null
 
-  // ✅ يحفظ token و user في AuthContext
+  // ✅ بعد login/register ناجح:
+  // - يحفظ user و token في AuthContext
+  // - يغلق المودال
+  // - إذا admin → يروح للوحة الإدارة تلقائياً
   const handleSuccess = (userData, token) => {
-  loginDirect(userData, token)
-  onClose()
-  if (onSuccess) onSuccess()
-}
+    loginDirect(userData, token)
+    onClose()
+    if (onSuccess) onSuccess()
+
+    // ── Redirect للأدمن ──────────────────────────
+    if (userData?.role === 'admin') {
+      navigate('/admin')
+    }
+  }
 
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}

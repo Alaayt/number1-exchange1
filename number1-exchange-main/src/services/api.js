@@ -3,7 +3,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 // ─── Helper ───────────────────────────────────────────────────
 const request = async (endpoint, options = {}) => {
-  const token = localStorage.getItem('n1_token') // ← المفتاح الصحيح
+  const token = localStorage.getItem('n1_token')
 
   const config = {
     headers: {
@@ -18,13 +18,11 @@ const request = async (endpoint, options = {}) => {
   const data = await response.json()
 
   if (!response.ok) {
-    // نرمي error بنفس شكل axios عشان AuthContext يقدر يقرأه
     const error = new Error(data.message || 'Something went wrong')
     error.response = { data }
     throw error
   }
 
-  // نرجع بنفس شكل axios: { data }
   return { data }
 }
 
@@ -43,11 +41,36 @@ export const ordersAPI = {
   verifyUSDT: (id, txHash) => request(`/orders/${id}/verify-usdt`, { method: 'POST', body: JSON.stringify({ txHash }) }),
 }
 
+// ─── Public Payment Methods (للمستخدم) ───────────────────────
+// يُستخدم في صفحة الـ Exchange عشان يعرض الوسائل المفعّلة فقط
+export const paymentAPI = {
+  getMethods: () => request('/payment-methods'),   // GET — بدون auth
+}
+
 // ─── Admin ────────────────────────────────────────────────────
 export const adminAPI = {
+  // Orders
   getOrders:    (params = {}) => request(`/admin/orders?${new URLSearchParams(params)}`),
   getOrder:     (id)          => request(`/admin/orders/${id}`),
-  updateStatus: (id, body)    => request(`/admin/orders/${id}/status`, { method: 'PUT', body: JSON.stringify(body) }),
-  getStats:     ()            => request('/admin/stats'),
-  getUsers:     ()            => request('/admin/users'),
+  updateStatus: (id, body)    => request(`/admin/orders/${id}/status`, { method: 'PUT',  body: JSON.stringify(body) }),
+
+  // Stats
+  getStats: () => request('/admin/stats'),
+
+  // Users
+  getUsers:    (params = {}) => request(`/admin/users?${new URLSearchParams(params)}`),
+  blockUser:   (id, body)    => request(`/admin/users/${id}/block`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // Rates
+  getRates: ()     => request('/admin/rates'),
+  saveRates: (body) => request('/admin/rates', { method: 'PUT', body: JSON.stringify(body) }),
+
+  // Settings
+  getSettings: ()     => request('/admin/settings'),
+  saveSettings: (body) => request('/admin/settings', { method: 'PUT', body: JSON.stringify(body) }),
+
+  // ── Payment Methods ─────────────────────────────────────────
+  // الأدمن يتحكم في وسائل الدفع وأرقام الاستلام
+  getPaymentMethods:  ()     => request('/admin/payment-methods'),
+  savePaymentMethods: (body) => request('/admin/payment-methods', { method: 'PUT', body: JSON.stringify(body) }),
 }

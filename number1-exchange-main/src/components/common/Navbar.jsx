@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import useTheme    from '../../context/useTheme'
 import useLang     from '../../context/useLang'
 import { AuthContext } from '../../context/AuthContext'
+
 const NAV_ITEMS = [
   { path: '/',             ar: 'الرئيسية',         en: 'Home'         },
   { path: '/rates',        ar: 'الأسعار',           en: 'Rates'        },
@@ -13,7 +14,7 @@ const NAV_ITEMS = [
   { path: '/contact',      ar: 'تواصل معنا',         en: 'Contact'      },
 ]
 
-// ── Original Logo (unchanged) ──────────────────────────────
+// ── Logo ───────────────────────────────────────────────────
 function Logo({ onClick }) {
   return (
     <a onClick={onClick} style={{ display:'inline-flex', alignItems:'center', gap:12, textDecoration:'none', cursor:'pointer', userSelect:'none', flexShrink:0 }}>
@@ -85,12 +86,12 @@ function MobileDrawer({ isOpen, items, currentPath, onNavigate, onClose, isAr })
 }
 
 // ── User Menu (when logged in) ─────────────────────────────
-function UserMenu({ user, onLogout, isAr }) {
+function UserMenu({ user, onLogout, isAr, onNavigate }) {
   const [open, setOpen] = useState(false)
   const [hov,  setHov]  = useState(false)
 
-  // أول كلمة من الاسم كـ avatar placeholder
-  const initial = user?.name?.charAt(0)?.toUpperCase() || '?'
+  const initial  = user?.name?.charAt(0)?.toUpperCase() || '?'
+  const isAdmin  = user?.role === 'admin'   // ← هل هو أدمن؟
 
   return (
     <div style={{ position:'relative' }}>
@@ -107,16 +108,20 @@ function UserMenu({ user, onLogout, isAr }) {
           cursor: 'pointer', transition: 'all 0.22s',
         }}
       >
-        {/* Avatar circle */}
+        {/* Avatar */}
         <div style={{
           width: 28, height: 28, borderRadius: '50%',
-          background: 'linear-gradient(135deg,#00b8d9,#0086b3)',
+          background: isAdmin
+            ? 'linear-gradient(135deg,#f59e0b,#d97706)'   // ذهبي للأدمن
+            : 'linear-gradient(135deg,#00b8d9,#0086b3)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: "'Tajawal',sans-serif", fontSize: '0.82rem',
           fontWeight: 800, color: '#fff', flexShrink: 0,
-          boxShadow: '0 0 10px rgba(0,210,255,0.35)',
+          boxShadow: isAdmin
+            ? '0 0 10px rgba(245,158,11,0.5)'
+            : '0 0 10px rgba(0,210,255,0.35)',
         }}>
-          {initial}
+          {isAdmin ? '⚙' : initial}
         </div>
 
         {/* Name */}
@@ -126,7 +131,10 @@ function UserMenu({ user, onLogout, isAr }) {
           maxWidth: 90, overflow: 'hidden',
           textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
-          {user?.name?.split(' ')[0] || (isAr ? 'حسابي' : 'Account')}
+          {isAdmin
+            ? (isAr ? 'المشرف' : 'Admin')
+            : (user?.name?.split(' ')[0] || (isAr ? 'حسابي' : 'Account'))
+          }
         </span>
 
         {/* Chevron */}
@@ -140,14 +148,13 @@ function UserMenu({ user, onLogout, isAr }) {
       {/* Dropdown */}
       {open && (
         <>
-          {/* Backdrop */}
           <div onClick={() => setOpen(false)}
             style={{ position: 'fixed', inset: 0, zIndex: 98 }} />
 
           <div style={{
             position: 'absolute', top: 'calc(100% + 8px)',
             right: isAr ? 'auto' : 0, left: isAr ? 0 : 'auto',
-            minWidth: 180, zIndex: 99,
+            minWidth: 190, zIndex: 99,
             background: 'var(--card)',
             border: '1px solid var(--border-1)',
             borderRadius: 12, overflow: 'hidden',
@@ -155,43 +162,67 @@ function UserMenu({ user, onLogout, isAr }) {
             animation: 'auth-fade 0.18s ease',
           }}>
             {/* User info */}
-            <div style={{
-              padding: '12px 14px',
-              borderBottom: '1px solid var(--border-1)',
-            }}>
-              <div style={{
-                fontSize: '0.82rem', fontWeight: 800,
-                color: 'var(--text-1)', fontFamily: "'Tajawal',sans-serif",
-              }}>
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-1)' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-1)', fontFamily: "'Tajawal',sans-serif" }}>
                 {user?.name}
               </div>
-              <div style={{
-                fontSize: '0.7rem', color: 'var(--text-3)',
-                fontFamily: "'JetBrains Mono',monospace",
-                marginTop: 2, direction: 'ltr', textAlign: isAr ? 'right' : 'left',
-              }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 2, direction: 'ltr', textAlign: isAr ? 'right' : 'left' }}>
                 {user?.email}
               </div>
+              {/* Admin badge */}
+              {isAdmin && (
+                <div style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.68rem', fontWeight: 700, color: '#d97706', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 6, padding: '2px 8px', fontFamily: "'JetBrains Mono',monospace" }}>
+                  ⚙ ADMIN
+                </div>
+              )}
             </div>
 
-            {/* Orders link */}
-            <button
-              onClick={() => setOpen(false)}
-              style={{
-                width: '100%', padding: '10px 14px',
-                background: 'transparent', border: 'none',
-                textAlign: isAr ? 'right' : 'left',
-                fontFamily: "'Tajawal',sans-serif", fontSize: '0.85rem',
-                fontWeight: 700, color: 'var(--text-2)',
-                cursor: 'pointer', transition: 'all 0.18s',
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--cyan-dim)'; e.currentTarget.style.color = 'var(--cyan)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              {isAr ? 'طلباتي' : 'My Orders'}
-            </button>
+            {/* ── لوحة التحكم — يظهر فقط للأدمن ── */}
+            {isAdmin && (
+              <button
+                onClick={() => { onNavigate('/admin'); setOpen(false) }}
+                style={{
+                  width: '100%', padding: '10px 14px',
+                  background: 'transparent', border: 'none',
+                  textAlign: isAr ? 'right' : 'left',
+                  fontFamily: "'Tajawal',sans-serif", fontSize: '0.85rem',
+                  fontWeight: 700, color: '#d97706',
+                  cursor: 'pointer', transition: 'all 0.18s',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  borderBottom: '1px solid var(--border-1)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+              >
+                {/* Icon */}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                  <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                {isAr ? 'لوحة التحكم' : 'Admin Panel'}
+              </button>
+            )}
+
+            {/* طلباتي — للمستخدم العادي فقط */}
+            {!isAdmin && (
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  width: '100%', padding: '10px 14px',
+                  background: 'transparent', border: 'none',
+                  textAlign: isAr ? 'right' : 'left',
+                  fontFamily: "'Tajawal',sans-serif", fontSize: '0.85rem',
+                  fontWeight: 700, color: 'var(--text-2)',
+                  cursor: 'pointer', transition: 'all 0.18s',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--cyan-dim)'; e.currentTarget.style.color = 'var(--cyan)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                {isAr ? 'طلباتي' : 'My Orders'}
+              </button>
+            )}
 
             {/* Logout */}
             <button
@@ -220,18 +251,18 @@ function UserMenu({ user, onLogout, isAr }) {
   )
 }
 
-
 // ── Main Navbar ────────────────────────────────────────────
 function Navbar({ onOpenAuth }) {
   const { isDark, toggleTheme } = useTheme()
   const { lang, toggleLang }    = useLang()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate  = useNavigate()
+  const location  = useLocation()
   const [scrolled,   setScrolled]   = useState(false)
   const [lHov,       setLHov]       = useState(false)
   const [rHov,       setRHov]       = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-const { user, logout } = useContext(AuthContext)
+  const { user, logout } = useContext(AuthContext)
+
   const isAr    = lang === 'ar'
   const curPath = location.pathname
 
@@ -275,36 +306,39 @@ const { user, logout } = useContext(AuthContext)
             ))}
           </div>
 
-{/* Right controls */}
-<div style={{ display:'flex', gap:9, alignItems:'center', flexShrink:0 }}>
-  <LangToggle lang={lang} onToggle={toggleLang} />
-  <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+          {/* Right controls */}
+          <div style={{ display:'flex', gap:9, alignItems:'center', flexShrink:0 }}>
+            <LangToggle lang={lang} onToggle={toggleLang} />
+            <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
-  {user ? (
-    // ── مسجّل دخول ──────────────────────────────
-    <UserMenu user={user} onLogout={logout} isAr={isAr} />
-  ) : (
-    // ── غير مسجّل ───────────────────────────────
-    <>
-      <button onClick={() => onOpenAuth('login')}
-        onMouseEnter={() => setLHov(true)} onMouseLeave={() => setLHov(false)}
-        style={{ background:lHov?'var(--cyan-dim)':'transparent', border:`1px solid ${lHov?'var(--border-2)':'var(--border-1)'}`, color:lHov?'var(--text-1)':'var(--text-2)', padding:'9px 20px', borderRadius:9, fontFamily:"'Tajawal',sans-serif", fontSize:'0.88rem', fontWeight:700, cursor:'pointer', transition:'all 0.22s', whiteSpace:'nowrap' }}>
-        {isAr ? 'تسجيل الدخول' : 'Login'}
-      </button>
+            {user ? (
+              <UserMenu
+                user={user}
+                onLogout={logout}
+                isAr={isAr}
+                onNavigate={navigate}   // ← لازم نمرره عشان navigate('/admin')
+              />
+            ) : (
+              <>
+                <button onClick={() => onOpenAuth('login')}
+                  onMouseEnter={() => setLHov(true)} onMouseLeave={() => setLHov(false)}
+                  style={{ background:lHov?'var(--cyan-dim)':'transparent', border:`1px solid ${lHov?'var(--border-2)':'var(--border-1)'}`, color:lHov?'var(--text-1)':'var(--text-2)', padding:'9px 20px', borderRadius:9, fontFamily:"'Tajawal',sans-serif", fontSize:'0.88rem', fontWeight:700, cursor:'pointer', transition:'all 0.22s', whiteSpace:'nowrap' }}>
+                  {isAr ? 'تسجيل الدخول' : 'Login'}
+                </button>
 
-      <button onClick={() => onOpenAuth('register')}
-        onMouseEnter={() => setRHov(true)} onMouseLeave={() => setRHov(false)}
-        style={{ background:'linear-gradient(135deg,#00b8d9,#0086b3)', border:'none', color:'#fff', padding:'9px 20px', borderRadius:9, fontFamily:"'Tajawal',sans-serif", fontSize:'0.88rem', fontWeight:700, cursor:'pointer', transform:rHov?'translateY(-2px)':'translateY(0)', boxShadow:rHov?'0 6px 26px rgba(0,210,255,0.38)':'0 0 18px rgba(0,210,255,0.18)', transition:'all 0.22s', whiteSpace:'nowrap' }}>
-        {isAr ? 'إنشاء حساب' : 'Sign Up'}
-      </button>
-    </>
-  )}
+                <button onClick={() => onOpenAuth('register')}
+                  onMouseEnter={() => setRHov(true)} onMouseLeave={() => setRHov(false)}
+                  style={{ background:'linear-gradient(135deg,#00b8d9,#0086b3)', border:'none', color:'#fff', padding:'9px 20px', borderRadius:9, fontFamily:"'Tajawal',sans-serif", fontSize:'0.88rem', fontWeight:700, cursor:'pointer', transform:rHov?'translateY(-2px)':'translateY(0)', boxShadow:rHov?'0 6px 26px rgba(0,210,255,0.38)':'0 0 18px rgba(0,210,255,0.18)', transition:'all 0.22s', whiteSpace:'nowrap' }}>
+                  {isAr ? 'إنشاء حساب' : 'Sign Up'}
+                </button>
+              </>
+            )}
 
-  <button onClick={() => setMobileOpen(v => !v)} className="nav-hamburger"
-    style={{ background:'transparent', border:'1px solid var(--border-1)', borderRadius:8, padding:'6px 10px', cursor:'pointer', color:'var(--text-1)', fontSize:'1.2rem' }}>
-    ☰
-  </button>
-</div>
+            <button onClick={() => setMobileOpen(v => !v)} className="nav-hamburger"
+              style={{ background:'transparent', border:'1px solid var(--border-1)', borderRadius:8, padding:'6px 10px', cursor:'pointer', color:'var(--text-1)', fontSize:'1.2rem' }}>
+              ☰
+            </button>
+          </div>
         </div>
       </nav>
 

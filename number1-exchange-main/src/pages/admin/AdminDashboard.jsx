@@ -1,188 +1,319 @@
 // src/pages/admin/AdminDashboard.jsx
-import { useState, useEffect } from 'react'
-import AdminLayout from '../../components/admin/AdminLayout'
-import { adminAPI } from '../../services/api'
+// =============================================
+// Admin Dashboard - Stats Cards + Recent Orders + Chart
+// =============================================
 
-// ── Stat Card ──────────────────────────────────
-function StatCard({ icon, label, value, sub, color = '#00d2ff' }) {
-  return (
-    <div style={{
-      background: 'rgba(15,23,42,0.8)',
-      border: `1px solid ${color}22`,
-      borderRadius: 16,
-      padding: '20px 24px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      transition: 'all 0.2s',
-    }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = `${color}55`}
-      onMouseLeave={e => e.currentTarget.style.borderColor = `${color}22`}
-    >
-      <div style={{
-        width: 52, height: 52, borderRadius: 14,
-        background: `${color}15`,
-        border: `1px solid ${color}30`,
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'center', fontSize: '1.6rem', flexShrink: 0,
-      }}>
-        {icon}
-      </div>
-      <div>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(148,163,184,0.6)', marginBottom: 4, letterSpacing: 1 }}>{label}</div>
-        <div style={{ fontSize: '1.6rem', fontWeight: 900, color, fontFamily: "'Orbitron',sans-serif", lineHeight: 1 }}>{value}</div>
-        {sub && <div style={{ fontSize: '0.7rem', color: 'rgba(148,163,184,0.4)', marginTop: 4 }}>{sub}</div>}
-      </div>
-    </div>
-  )
-}
+import { useEffect, useState } from "react";
+import AdminLayout from "../../components/admin/AdminLayout";
+import {
+  ArrowLeftRight,
+  Users,
+  DollarSign,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 
-// ── Order Row ──────────────────────────────────
-function OrderRow({ order }) {
-  const statusColor = {
-    pending:    '#f59e0b',
-    processing: '#3b82f6',
-    completed:  '#22c55e',
-    rejected:   '#ef4444',
-  }
+// ── API call ──────────────────────────────────────────
+const API = import.meta.env.VITE_API_URL;
 
-  const statusAr = {
-    pending:    'معلّق',
-    processing: 'قيد المعالجة',
-    completed:  'مكتمل',
-    rejected:   'مرفوض',
-  }
-
-  return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr',
-      gap: 12,
-      padding: '14px 16px',
-      borderBottom: '1px solid rgba(255,255,255,0.04)',
-      alignItems: 'center',
-      fontSize: '0.82rem',
-      transition: 'background 0.2s',
-    }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-    >
-      <span style={{ color: '#00d2ff', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.75rem' }}>
-        #{order.orderNumber || order._id?.slice(-6)}
-      </span>
-      <span style={{ color: '#e2e8f0' }}>{order.user?.name || 'مجهول'}</span>
-      <span style={{ color: '#94a3b8' }}>{order.fromAmount} {order.fromCurrency}</span>
-      <span style={{ color: '#94a3b8' }}>{order.toAmount} {order.toCurrency}</span>
-      <span style={{
-        padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700,
-        background: `${statusColor[order.status] || '#94a3b8'}18`,
-        color: statusColor[order.status] || '#94a3b8',
-        border: `1px solid ${statusColor[order.status] || '#94a3b8'}30`,
-        display: 'inline-block',
-      }}>
-        {statusAr[order.status] || order.status}
-      </span>
-    </div>
-  )
-}
-
-// ── Main Dashboard ─────────────────────────────
-function AdminDashboard() {
-  const [stats,  setStats]  = useState(null)
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+export default function AdminDashboard() {
+  const [stats, setStats]         = useState(null);
+  const [recentOrders, setRecent] = useState([]);
+  const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [statsRes, ordersRes] = await Promise.all([
-          adminAPI.getStats(),
-          adminAPI.getOrders({ limit: 8 }),
-        ])
-        setStats(statsRes.data)
-        setOrders(ordersRes.data?.orders || [])
-      } catch (err) {
-        console.error('Dashboard load error:', err)
-      } finally {
-        setLoading(false)
-      }
+    fetchDashboard();
+  }, []);
+
+  const fetchDashboard = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+
+      // Fetch stats + recent orders in parallel
+      const [statsRes, ordersRes] = await Promise.all([
+        fetch(`${API}/api/admin/stats`, { headers }),
+        fetch(`${API}/api/admin/orders?limit=5&sort=newest`, { headers }),
+      ]);
+
+      const statsData  = await statsRes.json();
+      const ordersData = await ordersRes.json();
+
+      setStats(statsData);
+      setRecent(ordersData.orders || []);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+    } finally {
+      setLoading(false);
     }
-    load()
-  }, [])
+  };
 
   if (loading) return (
     <AdminLayout>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#00d2ff', fontSize: '1rem' }}>
-        ⏳ جاري التحميل...
-      </div>
+      <div style={styles.loading}>جاري التحميل...</div>
     </AdminLayout>
-  )
+  );
+
+  // ── Stat cards config ────────────────────────────
+  const statCards = [
+    {
+      title: "إجمالي الطلبات",
+      value: stats?.totalOrders ?? "—",
+      icon: ArrowLeftRight,
+      color: "#2563eb",
+      bg:   "#1e3a5f",
+      sub:  `${stats?.todayOrders ?? 0} اليوم`,
+    },
+    {
+      title: "المستخدمون",
+      value: stats?.totalUsers ?? "—",
+      icon: Users,
+      color: "#7c3aed",
+      bg:   "#3b1f6e",
+      sub:  `${stats?.newUsersToday ?? 0} جديد اليوم`,
+    },
+    {
+      title: "حجم التداول (USDT)",
+      value: stats?.totalVolumeUsdt ? `$${Number(stats.totalVolumeUsdt).toLocaleString()}` : "—",
+      icon: DollarSign,
+      color: "#059669",
+      bg:   "#064e3b",
+      sub:  "إجمالي كل الوقت",
+    },
+    {
+      title: "معدل الإتمام",
+      value: stats?.completionRate ? `${stats.completionRate}%` : "—",
+      icon: TrendingUp,
+      color: "#d97706",
+      bg:   "#451a03",
+      sub:  "طلبات مكتملة / إجمالي",
+    },
+  ];
 
   return (
     <AdminLayout>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.3rem', fontWeight: 900, color: '#e2e8f0', marginBottom: 6 }}>
-          لوحة التحكم
-        </h1>
-        <p style={{ fontSize: '0.82rem', color: 'rgba(148,163,184,0.5)' }}>
-          مرحباً — إليك ملخص النشاط اليوم
-        </p>
+      {/* ── Stat Cards ────────────────────────────── */}
+      <div style={styles.statsGrid}>
+        {statCards.map((card) => (
+          <StatCard key={card.title} {...card} />
+        ))}
       </div>
 
-      {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
-        <StatCard icon="📋" label="إجمالي الطلبات"   value={stats?.totalOrders   ?? 0} color="#00d2ff" />
-        <StatCard icon="⏳" label="طلبات معلّقة"      value={stats?.pendingOrders ?? 0} color="#f59e0b" />
-        <StatCard icon="✅" label="طلبات مكتملة"      value={stats?.completedOrders ?? 0} color="#22c55e" />
-        <StatCard icon="👥" label="إجمالي المستخدمين" value={stats?.totalUsers    ?? 0} color="#a78bfa" />
-      </div>
-
-      {/* Recent Orders Table */}
-      <div style={{
-        background: 'rgba(15,23,42,0.8)',
-        border: '1px solid rgba(0,210,255,0.08)',
-        borderRadius: 16,
-        overflow: 'hidden',
-      }}>
-        {/* Table Header */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(0,210,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: 800, color: '#e2e8f0', fontSize: '0.9rem' }}>📋 آخر الطلبات</span>
-          <button
-            onClick={() => {}}
-            style={{ background: 'transparent', border: '1px solid rgba(0,210,255,0.2)', borderRadius: 8, padding: '5px 12px', color: '#00d2ff', fontSize: '0.75rem', cursor: 'pointer', fontFamily: "'Tajawal',sans-serif" }}>
-            عرض الكل
-          </button>
+      {/* ── Two columns: Recent Orders + Quick Summary ── */}
+      <div style={styles.bottomGrid}>
+        {/* Recent Orders */}
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <span style={styles.cardTitle}>أحدث الطلبات</span>
+            <a href="/admin/orders" style={styles.viewAll}>عرض الكل</a>
+          </div>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                {["#", "المستخدم", "النوع", "المبلغ", "الحالة", "التاريخ"].map((h) => (
+                  <th key={h} style={styles.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ ...styles.td, textAlign: "center", color: "#6e7681" }}>
+                    لا يوجد طلبات حتى الآن
+                  </td>
+                </tr>
+              ) : (
+                recentOrders.map((order) => (
+                  <tr key={order._id} style={styles.tr}>
+                    <td style={styles.td}>
+                      <span style={styles.orderId}>#{order._id.slice(-6)}</span>
+                    </td>
+                    <td style={styles.td}>{order.userId?.email || "—"}</td>
+                    <td style={styles.td}>
+                      <span style={styles.typeBadge}>{order.type || "USDT→EGP"}</span>
+                    </td>
+                    <td style={styles.td}>{order.amount} {order.currency}</td>
+                    <td style={styles.td}>
+                      <StatusBadge status={order.status} />
+                    </td>
+                    <td style={styles.td}>
+                      {new Date(order.createdAt).toLocaleDateString("ar-EG")}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Column Headers */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr',
-          gap: 12, padding: '10px 16px',
-          background: 'rgba(255,255,255,0.02)',
-          fontSize: '0.7rem', color: 'rgba(148,163,184,0.4)',
-          fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1,
-        }}>
-          <span>رقم الطلب</span>
-          <span>العميل</span>
-          <span>من</span>
-          <span>إلى</span>
-          <span>الحالة</span>
-        </div>
+        {/* Quick Summary */}
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <span style={styles.cardTitle}>ملخص الحالات</span>
+          </div>
+          <div style={styles.summaryList}>
+            <SummaryRow
+              icon={<Clock size={16} />}
+              label="قيد الانتظار"
+              value={stats?.pendingOrders ?? 0}
+              color="#d97706"
+            />
+            <SummaryRow
+              icon={<AlertCircle size={16} />}
+              label="قيد المراجعة"
+              value={stats?.reviewOrders ?? 0}
+              color="#7c3aed"
+            />
+            <SummaryRow
+              icon={<CheckCircle size={16} />}
+              label="مكتملة"
+              value={stats?.completedOrders ?? 0}
+              color="#059669"
+            />
+            <SummaryRow
+              icon={<XCircle size={16} />}
+              label="مرفوضة"
+              value={stats?.rejectedOrders ?? 0}
+              color="#f85149"
+            />
+          </div>
 
-        {/* Rows */}
-        {orders.length > 0
-          ? orders.map(o => <OrderRow key={o._id} order={o} />)
-          : (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'rgba(148,163,184,0.4)', fontSize: '0.85rem' }}>
-              لا توجد طلبات بعد
+          <div style={{ marginTop: 24 }}>
+            <div style={styles.cardTitle}>الطرق المفضّلة</div>
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              {(stats?.methodBreakdown || [
+                { method: "USDT", pct: 55 },
+                { method: "Vodafone Cash", pct: 25 },
+                { method: "InstaPay", pct: 12 },
+                { method: "أخرى", pct: 8 },
+              ]).map((m) => (
+                <ProgressRow key={m.method} label={m.method} pct={m.pct} />
+              ))}
             </div>
-          )
-        }
+          </div>
+        </div>
       </div>
     </AdminLayout>
-  )
+  );
 }
 
-export default AdminDashboard
+// ── Sub-components ─────────────────────────────────────
+
+function StatCard({ title, value, icon: Icon, color, bg, sub }) {
+  return (
+    <div style={styles.statCard}>
+      <div style={{ ...styles.statIcon, backgroundColor: bg, color }}>
+        <Icon size={22} />
+      </div>
+      <div>
+        <div style={styles.statValue}>{value}</div>
+        <div style={styles.statTitle}>{title}</div>
+        <div style={styles.statSub}>{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const map = {
+    pending:   { label: "انتظار",  color: "#d97706", bg: "#451a03" },
+    reviewing: { label: "مراجعة", color: "#7c3aed", bg: "#3b1f6e" },
+    completed: { label: "مكتمل",  color: "#059669", bg: "#064e3b" },
+    rejected:  { label: "مرفوض", color: "#f85149", bg: "#3d0a0a" },
+  };
+  const s = map[status] || { label: status, color: "#8b949e", bg: "#21262d" };
+  return (
+    <span style={{
+      padding: "2px 8px",
+      borderRadius: 12,
+      fontSize: 12,
+      fontWeight: 600,
+      backgroundColor: s.bg,
+      color: s.color,
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
+function SummaryRow({ icon, label, value, color }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #21262d" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, color }}>
+        {icon}
+        <span style={{ fontSize: 14, color: "#c9d1d9" }}>{label}</span>
+      </div>
+      <span style={{ fontSize: 18, fontWeight: 700, color }}>{value}</span>
+    </div>
+  );
+}
+
+function ProgressRow({ label, pct }) {
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#8b949e", marginBottom: 4 }}>
+        <span>{label}</span>
+        <span>{pct}%</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: "#21262d", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)", borderRadius: 3 }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Styles ─────────────────────────────────────────────
+const styles = {
+  loading: { display: "flex", justifyContent: "center", padding: 80, color: "#8b949e", fontSize: 18 },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 16,
+    marginBottom: 24,
+  },
+  statCard: {
+    backgroundColor: "#161b22",
+    border: "1px solid #21262d",
+    borderRadius: 12,
+    padding: 20,
+    display: "flex",
+    alignItems: "center",
+    gap: 16,
+  },
+  statIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  statValue: { fontSize: 24, fontWeight: 700, color: "#e6edf3" },
+  statTitle: { fontSize: 13, color: "#8b949e", marginTop: 2 },
+  statSub:   { fontSize: 11, color: "#484f58", marginTop: 2 },
+  bottomGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 340px",
+    gap: 16,
+  },
+  card: {
+    backgroundColor: "#161b22",
+    border: "1px solid #21262d",
+    borderRadius: 12,
+    padding: 20,
+  },
+  cardHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  cardTitle:  { fontSize: 15, fontWeight: 600, color: "#e6edf3" },
+  viewAll:    { fontSize: 13, color: "#2563eb", textDecoration: "none" },
+  table:  { width: "100%", borderCollapse: "collapse" },
+  th: { textAlign: "right", padding: "8px 12px", fontSize: 12, color: "#6e7681", borderBottom: "1px solid #21262d", fontWeight: 500 },
+  td: { padding: "10px 12px", fontSize: 13, color: "#c9d1d9", borderBottom: "1px solid #21262d" },
+  tr: { transition: "background 0.15s" },
+  orderId:   { fontFamily: "monospace", color: "#8b949e", fontSize: 12 },
+  typeBadge: { fontSize: 11, color: "#2563eb", background: "#1e3a5f", padding: "2px 8px", borderRadius: 10, fontWeight: 600 },
+  summaryList: { display: "flex", flexDirection: "column" },
+};
