@@ -315,82 +315,128 @@ function PasswordStrength({ value, lang }) {
 
 /* ─── LOGIN SECTION ─── */
 function LoginSection({ onClose, lang }) {
-  const [step, setStep] = useState(1)
-  const [email, setEmail] = useState('')
+  const { login, error: authError, clearError } = useContext(AuthContext)
+
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [showPw, setShowPw] = useState(false)
+  const [showPw,   setShowPw]   = useState(false)
   const [remember, setRemember] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [errs, setErrs] = useState({})
+  const [loading,  setLoading]  = useState(false)
+  const [errs,     setErrs]     = useState({})
+  const [success,  setSuccess]  = useState(false)
+
+  // Clear auth errors when user starts typing
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value)
+    setErrs(p => ({ ...p, email: '' }))
+    clearError()
+  }
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value)
+    setErrs(p => ({ ...p, password: '' }))
+    clearError()
+  }
 
   const validate = () => {
     const e = {}
-    if (!email) e.email = lang==='ar' ? 'مطلوب' : 'Required'
-    else if (!email.includes('@')) e.email = lang==='ar' ? 'بريد غير صحيح' : 'Invalid email'
-    if (!password) e.password = lang==='ar' ? 'مطلوب' : 'Required'
-    setErrs(e); return Object.keys(e).length === 0
+    if (!email)              e.email    = lang === 'ar' ? 'مطلوب'         : 'Required'
+    else if (!email.includes('@')) e.email = lang === 'ar' ? 'بريد غير صحيح' : 'Invalid email'
+    if (!password)           e.password = lang === 'ar' ? 'مطلوب'         : 'Required'
+    setErrs(e)
+    return Object.keys(e).length === 0
   }
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!validate()) return
     setLoading(true)
-    setTimeout(() => { setLoading(false); setStep(2) }, 900)
+
+    const result = await login({ email, password })
+
+    setLoading(false)
+
+    if (result.success) {
+      setSuccess(true)
+      // Close modal after short delay so user sees success
+      setTimeout(onClose, 1200)
+    }
+    // if failed → authError will be set automatically by AuthContext
   }
 
-  if (step === 3) return <SuccessScreen titleAr="مرحباً بعودتك!" titleEn="Welcome back!" descAr="تم تسجيل دخولك بنجاح إلى منصة Number 1 Exchange" descEn="You've successfully logged in to Number 1 Exchange" btnAr="ابدأ التداول" btnEn="Start Trading" onClose={onClose} lang={lang} />
-
-  if (step === 2) return <OTPScreen icon={<EmailIcon />} titleAr="تحقق من بريدك" titleEn="Check your inbox" subtitleAr="أرسلنا كود تحقق مكوّن من 6 أرقام إلى" subtitleEn="We sent a 6-digit code to" target={email} onComplete={otp => { if (otp.length===6) { setLoading(true); setTimeout(()=>{ setLoading(false); setStep(3) },900) } }} onBack={() => setStep(1)} loading={loading} lang={lang} />
+  // ── Success Screen ──────────────────────────────────────
+  if (success) return (
+    <SuccessScreen
+      titleAr="مرحباً بعودتك!"    titleEn="Welcome back!"
+      descAr="تم تسجيل دخولك بنجاح إلى منصة Number 1 Exchange"
+      descEn="You've successfully logged in to Number 1 Exchange"
+      btnAr="ابدأ التداول" btnEn="Start Trading"
+      onClose={onClose} lang={lang}
+    />
+  )
 
   return (
     <div style={{ animation:'auth-fade 0.3s ease' }}>
       <AuthInput
-        type="email" value={email} placeholder={lang==='ar' ? 'البريد الإلكتروني' : 'Email address'}
-        onChange={e => { setEmail(e.target.value); setErrs(p=>({...p,email:''})) }}
+        type="email" value={email}
+        placeholder={lang === 'ar' ? 'البريد الإلكتروني' : 'Email address'}
+        onChange={handleEmailChange}
         icon={<EmailIcon />} error={errs.email} ltr autoFocus
       />
       <AuthInput
-        type="password" value={password} placeholder={lang==='ar' ? 'كلمة المرور' : 'Password'}
-        onChange={e => { setPassword(e.target.value); setErrs(p=>({...p,password:''})) }}
+        type="password" value={password}
+        placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'}
+        onChange={handlePasswordChange}
         icon={<LockIcon />} error={errs.password} ltr
         showToggle showPassword={showPw} onTogglePassword={() => setShowPw(!showPw)}
       />
 
+      {/* Backend error message */}
+      {authError && (
+        <div style={{
+          background: 'rgba(239,68,68,0.06)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 10,
+          padding: '10px 14px',
+          marginBottom: 14,
+          fontSize: '0.78rem',
+          color: '#ef4444',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {authError}
+        </div>
+      )}
+
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18, marginTop:-4 }}>
         <label style={{ display:'flex', alignItems:'center', gap:7, cursor:'pointer', userSelect:'none' }}>
-          <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} data-testid="remember-checkbox"
+          <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
             style={{ width:14, height:14, accentColor:'#3b82f6', cursor:'pointer' }}/>
-          <span style={{ fontSize:'0.76rem', color:'#94a3b8' }}>{lang==='ar' ? 'تذكرني' : 'Remember me'}</span>
+          <span style={{ fontSize:'0.76rem', color:'#94a3b8' }}>
+            {lang === 'ar' ? 'تذكرني' : 'Remember me'}
+          </span>
         </label>
-        <button onClick={() => {}} data-testid="forgot-password-btn" style={{ background:'none', border:'none', cursor:'pointer', fontSize:'0.76rem', color:'#3b82f6', fontFamily:"'Tajawal',sans-serif", transition:'opacity 0.2s' }}
-          onMouseEnter={e => e.currentTarget.style.opacity='.7'}
-          onMouseLeave={e => e.currentTarget.style.opacity='1'}>
-          {lang==='ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+        <button onClick={() => {}}
+          style={{ background:'none', border:'none', cursor:'pointer', fontSize:'0.76rem', color:'#3b82f6', fontFamily:"'Tajawal',sans-serif", transition:'opacity 0.2s' }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '.7'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+          {lang === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
         </button>
       </div>
 
       <AuthBtn onClick={handleLogin} loading={loading}>
-        {lang==='ar' ? 'تسجيل الدخول' : 'Sign in'}
+        {lang === 'ar' ? 'تسجيل الدخول' : 'Sign in'}
       </AuthBtn>
 
-      {/* Divider */}
       <div style={{ display:'flex', alignItems:'center', gap:12, margin:'20px 0', color:'rgba(148,163,184,0.4)', fontSize:'0.7rem', fontFamily:"'JetBrains Mono',monospace" }}>
         <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.06)' }} />
-        {lang==='ar' ? 'أو المتابعة عبر' : 'or continue with'}
+        {lang === 'ar' ? 'أو المتابعة عبر' : 'or continue with'}
         <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.06)' }} />
       </div>
 
-      {/* Social Buttons */}
       <div style={{ display:'flex', gap:10 }}>
-        <SocialBtn
-          icon={<GoogleIcon />}
-          label="Google"
-          onClick={() => {}}
-        />
-        <SocialBtn
-          icon={<AppleIcon />}
-          label="Apple"
-          onClick={() => {}}
-        />
+        <SocialBtn icon={<GoogleIcon />} label="Google" onClick={() => {}} />
+        <SocialBtn icon={<AppleIcon />} label="Apple"  onClick={() => {}} />
       </div>
     </div>
   )
@@ -398,90 +444,149 @@ function LoginSection({ onClose, lang }) {
 
 /* ─── REGISTER SECTION ─── */
 function RegisterSection({ onClose, lang }) {
-  const [step, setStep] = useState(1)
-  const [form, setForm] = useState({ fullName:'', email:'', phone:'', password:'', confirm:'' })
-  const [showPw, setShowPw] = useState(false)
-  const [showCpw, setShowCpw] = useState(false)
-  const [agreed, setAgreed] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [errs, setErrs] = useState({})
+  const { register, error: authError, clearError } = useContext(AuthContext)
 
-  const upd = (k, v) => setForm(p => ({ ...p, [k]:v }))
+  const [form,    setForm]    = useState({ fullName:'', email:'', phone:'', password:'', confirm:'' })
+  const [showPw,  setShowPw]  = useState(false)
+  const [showCpw, setShowCpw] = useState(false)
+  const [agreed,  setAgreed]  = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [errs,    setErrs]    = useState({})
+  const [success, setSuccess] = useState(false)
+
+  const upd = (k, v) => {
+    setForm(p => ({ ...p, [k]: v }))
+    setErrs(p => ({ ...p, [k]: '' }))
+    clearError()
+  }
 
   const validate = () => {
     const e = {}
-    if (!form.fullName || form.fullName.trim().split(' ').length < 2) e.fullName = lang==='ar' ? 'أدخل الاسم الثلاثي' : 'Enter full name'
-    if (!form.email || !form.email.includes('@')) e.email = lang==='ar' ? 'بريد غير صحيح' : 'Invalid email'
-    if (!form.phone || form.phone.length < 8) e.phone = lang==='ar' ? 'رقم غير صحيح' : 'Invalid number'
-    if (getStrength(form.password) < 2) e.password = lang==='ar' ? 'كلمة مرور ضعيفة' : 'Too weak'
-    if (form.password !== form.confirm) e.confirm = lang==='ar' ? 'لا تتطابق' : 'Mismatch'
+    if (!form.fullName || form.fullName.trim().split(' ').length < 2)
+      e.fullName = lang === 'ar' ? 'أدخل الاسم الثلاثي' : 'Enter full name'
+    if (!form.email || !form.email.includes('@'))
+      e.email    = lang === 'ar' ? 'بريد غير صحيح'    : 'Invalid email'
+    if (!form.phone || form.phone.length < 8)
+      e.phone    = lang === 'ar' ? 'رقم غير صحيح'     : 'Invalid number'
+    if (getStrength(form.password) < 2)
+      e.password = lang === 'ar' ? 'كلمة مرور ضعيفة'  : 'Too weak'
+    if (form.password !== form.confirm)
+      e.confirm  = lang === 'ar' ? 'لا تتطابق'         : 'Mismatch'
     if (!agreed) e.agreed = true
-    setErrs(e); return Object.keys(e).length === 0
+    setErrs(e)
+    return Object.keys(e).length === 0
   }
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!validate()) return
     setLoading(true)
-    setTimeout(() => { setLoading(false); setStep(2) }, 900)
+
+    const result = await register({
+      name:     form.fullName.trim(),
+      email:    form.email,
+      phone:    form.phone,
+      password: form.password,
+    })
+
+    setLoading(false)
+
+    if (result.success) {
+      setSuccess(true)
+      setTimeout(onClose, 1200)
+    }
   }
 
-  if (step === 4) return <SuccessScreen titleAr="تم إنشاء حسابك!" titleEn="Account Created!" descAr="مرحباً بك في منصة Number 1 Exchange" descEn="Welcome to Number 1 Exchange" btnAr="ابدأ الآن" btnEn="Get Started" onClose={onClose} lang={lang} />
-
-  if (step === 3) return <OTPScreen icon={<PhoneIcon />} titleAr="تأكيد رقم الهاتف" titleEn="Verify Phone" subtitleAr="أرسلنا رمز SMS إلى" subtitleEn="We sent an SMS code to" target={form.phone} onComplete={otp => { if(otp.length===6){ setLoading(true); setTimeout(()=>{ setLoading(false); setStep(4) },900) } }} onBack={() => setStep(2)} loading={loading} lang={lang} />
-
-  if (step === 2) return <OTPScreen icon={<EmailIcon />} titleAr="تأكيد البريد الإلكتروني" titleEn="Verify Email" subtitleAr="أرسلنا كود تحقق إلى" subtitleEn="We sent a code to" target={form.email} onComplete={otp => { if(otp.length===6){ setLoading(true); setTimeout(()=>{ setLoading(false); setStep(3) },900) } }} onBack={() => setStep(1)} loading={loading} lang={lang} />
+  // ── Success Screen ──────────────────────────────────────
+  if (success) return (
+    <SuccessScreen
+      titleAr="تم إنشاء حسابك!" titleEn="Account Created!"
+      descAr="مرحباً بك في منصة Number 1 Exchange"
+      descEn="Welcome to Number 1 Exchange"
+      btnAr="ابدأ الآن" btnEn="Get Started"
+      onClose={onClose} lang={lang}
+    />
+  )
 
   return (
     <div style={{ animation:'auth-fade 0.3s ease' }}>
-      <AuthInput value={form.fullName} placeholder={lang==='ar' ? 'الاسم الكامل' : 'Full name'}
-        onChange={e => { upd('fullName',e.target.value); setErrs(p=>({...p,fullName:''})) }}
+      <AuthInput
+        value={form.fullName}
+        placeholder={lang === 'ar' ? 'الاسم الكامل' : 'Full name'}
+        onChange={e => upd('fullName', e.target.value)}
         icon={<UserIcon />} error={errs.fullName} autoFocus
       />
-      <AuthInput type="email" value={form.email} placeholder={lang==='ar' ? 'البريد الإلكتروني' : 'Email address'}
-        onChange={e => { upd('email',e.target.value); setErrs(p=>({...p,email:''})) }}
+      <AuthInput
+        type="email" value={form.email}
+        placeholder={lang === 'ar' ? 'البريد الإلكتروني' : 'Email address'}
+        onChange={e => upd('email', e.target.value)}
         icon={<EmailIcon />} error={errs.email} ltr
       />
-      <AuthInput type="tel" value={form.phone} placeholder="+964 7XX XXX XXXX"
-        onChange={e => { upd('phone',e.target.value); setErrs(p=>({...p,phone:''})) }}
+      <AuthInput
+        type="tel" value={form.phone} placeholder="+964 7XX XXX XXXX"
+        onChange={e => upd('phone', e.target.value)}
         icon={<PhoneIcon />} error={errs.phone} ltr
       />
-      <AuthInput type="password" value={form.password} placeholder={lang==='ar' ? 'كلمة المرور' : 'Password'}
-        onChange={e => { upd('password',e.target.value); setErrs(p=>({...p,password:''})) }}
+      <AuthInput
+        type="password" value={form.password}
+        placeholder={lang === 'ar' ? 'كلمة المرور' : 'Password'}
+        onChange={e => upd('password', e.target.value)}
         icon={<LockIcon />} error={errs.password} ltr
         showToggle showPassword={showPw} onTogglePassword={() => setShowPw(!showPw)}
       />
       <PasswordStrength value={form.password} lang={lang} />
-      <AuthInput type="password" value={form.confirm} placeholder={lang==='ar' ? 'تأكيد كلمة المرور' : 'Confirm password'}
-        onChange={e => { upd('confirm',e.target.value); setErrs(p=>({...p,confirm:''})) }}
+      <AuthInput
+        type="password" value={form.confirm}
+        placeholder={lang === 'ar' ? 'تأكيد كلمة المرور' : 'Confirm password'}
+        onChange={e => upd('confirm', e.target.value)}
         icon={<LockIcon />} error={errs.confirm} ltr
         showToggle showPassword={showCpw} onTogglePassword={() => setShowCpw(!showCpw)}
       />
 
+      {/* Backend error message */}
+      {authError && (
+        <div style={{
+          background: 'rgba(239,68,68,0.06)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 10,
+          padding: '10px 14px',
+          marginBottom: 14,
+          fontSize: '0.78rem',
+          color: '#ef4444',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {authError}
+        </div>
+      )}
+
       <label style={{ display:'flex', alignItems:'flex-start', gap:9, cursor:'pointer', marginBottom:16, marginTop:4 }}>
-        <input type="checkbox" checked={agreed} data-testid="terms-checkbox" onChange={e => { setAgreed(e.target.checked); setErrs(p=>({...p,agreed:''})) }}
-          style={{ width:14, height:14, marginTop:2, accentColor:'#3b82f6', cursor:'pointer', flexShrink:0 }}/>
+        <input type="checkbox" checked={agreed}
+          onChange={e => { setAgreed(e.target.checked); setErrs(p=>({...p,agreed:''})) }}
+          style={{ width:14, height:14, marginTop:2, accentColor:'#3b82f6', cursor:'pointer', flexShrink:0 }}
+        />
         <span style={{ fontSize:'0.75rem', color: errs.agreed ? '#ef4444' : '#94a3b8', lineHeight:1.55 }}>
-          {lang==='ar'
-            ? <>أوافق على <span style={{color:'#3b82f6'}}>شروط الخدمة</span> و<span style={{color:'#3b82f6'}}>سياسة الخصوصية</span></>
+          {lang === 'ar'
+            ? <><span>أوافق على </span><span style={{color:'#3b82f6'}}>شروط الخدمة</span><span> و</span><span style={{color:'#3b82f6'}}>سياسة الخصوصية</span></>
             : <>I agree to the <span style={{color:'#3b82f6'}}>Terms of Service</span> and <span style={{color:'#3b82f6'}}>Privacy Policy</span></>
           }
         </span>
       </label>
 
       <AuthBtn onClick={handleRegister} loading={loading}>
-        {lang==='ar' ? 'إنشاء الحساب' : 'Create Account'}
+        {lang === 'ar' ? 'إنشاء الحساب' : 'Create Account'}
       </AuthBtn>
 
-      {/* Divider */}
       <div style={{ display:'flex', alignItems:'center', gap:12, margin:'20px 0', color:'rgba(148,163,184,0.4)', fontSize:'0.7rem', fontFamily:"'JetBrains Mono',monospace" }}>
         <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.06)' }} />
-        {lang==='ar' ? 'أو المتابعة عبر' : 'or continue with'}
+        {lang === 'ar' ? 'أو المتابعة عبر' : 'or continue with'}
         <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.06)' }} />
       </div>
 
       <div style={{ display:'flex', gap:10 }}>
         <SocialBtn icon={<GoogleIcon />} label="Google" onClick={() => {}} />
-        <SocialBtn icon={<AppleIcon />} label="Apple" onClick={() => {}} />
+        <SocialBtn icon={<AppleIcon />} label="Apple"  onClick={() => {}} />
       </div>
     </div>
   )
