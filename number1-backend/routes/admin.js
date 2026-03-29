@@ -9,6 +9,7 @@ const User = require('../models/User');
 const { protect, adminOnly } = require('../middleware/auth');
 const telegramService = require('../services/telegram');
 const Rate = require('../models/Rate');
+const mongoose = require('mongoose')
 
 // ─── Middleware: حماية كل routes الأدمن ───────
 router.use(protect, adminOnly);
@@ -334,5 +335,43 @@ router.put('/settings', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error.' })
   }
 })
+
+// ── نموذج مؤقت لحفظ وسائل الدفع في DB ────────
+const paymentMethodSchema = new mongoose.Schema({
+  cryptos: { type: Array, default: [] },
+  wallets: { type: Array, default: [] },
+}, { timestamps: true })
+
+const PaymentMethod = mongoose.models.PaymentMethod || 
+  mongoose.model('PaymentMethod', paymentMethodSchema)
+
+// ─── GET /api/admin/payment-methods ───────────
+router.get('/payment-methods', async (req, res) => {
+  try {
+    let doc = await PaymentMethod.findOne()
+    if (!doc) doc = await PaymentMethod.create({ cryptos: [], wallets: [] })
+    res.json({ success: true, cryptos: doc.cryptos, wallets: doc.wallets })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── PUT /api/admin/payment-methods ───────────
+router.put('/payment-methods', async (req, res) => {
+  try {
+    const { cryptos, wallets } = req.body
+    const doc = await PaymentMethod.findOneAndUpdate(
+      {},
+      { $set: { cryptos: cryptos || [], wallets: wallets || [] } },
+      { new: true, upsert: true }
+    )
+    res.json({ success: true, message: 'Saved.', cryptos: doc.cryptos, wallets: doc.wallets })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── GET /api/payment-methods (public) ────────
+// للمستخدمين — يجلب الوسائل المفعّلة فقط
 
 module.exports = router;

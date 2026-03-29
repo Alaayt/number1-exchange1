@@ -6,6 +6,7 @@
 const express = require('express');
 const router  = express.Router();
 const Rate    = require('../models/Rate');
+const mongoose = require('mongoose')
 
 // ─── GET /api/public/rates ────────────────────
 // جلب الأسعار الحالية للمستخدمين
@@ -32,5 +33,22 @@ router.get('/rates', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
+
+// ─── GET /api/public/payment-methods ──────────
+router.get('/payment-methods', async (req, res) => {
+  try {
+    const PaymentMethod = mongoose.model('PaymentMethod')
+    let doc = await PaymentMethod.findOne()
+    if (!doc) return res.json({ success: true, cryptos: [], wallets: [] })
+
+    // فقط المفعّلة والمكتملة
+    const cryptos = (doc.cryptos || []).filter(c => c.enabled && c.address)
+    const wallets = (doc.wallets || []).filter(w => w.enabled && w.number)
+
+    res.json({ success: true, cryptos, wallets })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
 
 module.exports = router;
