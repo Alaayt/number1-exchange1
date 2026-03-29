@@ -11,6 +11,9 @@ require('dotenv').config();
 
 const app = express();
 
+// ✅ FIX: Railway يستخدم proxy — لازم نخبر Express يثق فيه
+app.set('trust proxy', 1);
+
 // ─── Middleware ───────────────────────────────
 app.use(helmet());
 app.use(cors({
