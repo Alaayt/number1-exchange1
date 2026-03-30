@@ -138,7 +138,7 @@ function PwStrength({ value, lang }) {
   if (!value) return null
   return (
     <div style={{ marginTop:-7, marginBottom:11 }}>
-      <div style={{ display:'flex', gap:3 }}>{[0,1,2,3].map(i=><div key={i} style={{ flex:1, height:2.5, borderRadius:3, transition:'background .3s', background:i<s?COLS[s-1]:'rgba(255,255,255,0.07)' }}/>)}</div>
+      <div style={{ display:'flex', gap:3 }}>{[0,1,2,3].map(i=><div key={i} style={{ flex:1, height:2.5, borderRadius:3, transition:'background .3s', background:i<s?COLS[s-1]:'var(--n1-border)' }}/>)}</div>
       <span style={{ fontSize:'.62rem', fontFamily:"'JetBrains Mono',monospace", color:COLS[s-1]||'#555', marginTop:3, display:'inline-block' }}>{lang==='ar'?LAR[s-1]:LEN[s-1]}</span>
     </div>
   )
@@ -161,7 +161,7 @@ function SocialBtn({ icon, label }) {
   const [hov, setHov] = useState(false)
   return (
     <button onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
-      style={{ flex:1, padding:'11px 0', background:hov?'rgba(255,255,255,0.055)':'rgba(255,255,255,0.022)', border:`1.5px solid ${hov?'rgba(0,210,255,0.2)':'rgba(0,210,255,0.08)'}`, borderRadius:13, color:hov?'#e8f4ff':'rgba(120,150,178,0.55)', cursor:'pointer', transition:'all .2s', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontFamily:"'Tajawal',sans-serif", fontSize:'.82rem', fontWeight:700, transform:hov?'translateY(-1px)':'none' }}>
+      style={{ flex:1, padding:'11px 0', background:hov?'var(--n1-input)':'transparent', border:`1.5px solid ${hov?'var(--n1-border)':'transparent'}`, borderRadius:13, color:hov?'var(--n1-text1)':'var(--n1-text2)', cursor:'pointer', transition:'all .2s', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontFamily:"'Tajawal',sans-serif", fontSize:'.82rem', fontWeight:700, transform:hov?'translateY(-1px)':'none' }}>
       {icon}{label}
     </button>
   )
@@ -463,7 +463,7 @@ function AuthModal({ isOpen, type, initialTab, onClose }) {
           <Logo3D/>
 
           {/* tabs */}
-          <div style={{ display:'flex', background:'rgba(255,255,255,0.022)', borderRadius:12, padding:3, marginBottom:22, border:'1px solid rgba(0,210,255,0.06)' }}>
+          <div style={{ display:'flex', background:'rgba(255,255,255,0.022)', borderRadius:12, padding:3, marginBottom:22, border:'1px solid var(--n1-border)' }}>
             {['login','register'].map(t=>(
               <button key={t} onClick={()=>setTab(t)}
                 style={{ flex:1, padding:'9px 0', borderRadius:10, background:tab===t?'rgba(0,210,255,0.1)':'transparent', border:tab===t?'1px solid rgba(0,210,255,0.2)':'1px solid transparent', fontFamily:"'Tajawal',sans-serif", fontSize:'.86rem', fontWeight:700, color:tab===t?'#00d2ff':'rgba(100,135,162,0.38)', cursor:'pointer', transition:'all .22s' }}>

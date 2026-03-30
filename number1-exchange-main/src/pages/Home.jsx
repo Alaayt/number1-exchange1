@@ -83,7 +83,7 @@ function OpRow({op,lang,isNew}) {
         {recvMethod ? <CurrencyIcon method={recvMethod} size={22}/> : <div style={{width:22,height:22,borderRadius:6,background:pair.recvColor,flexShrink:0}}/>}
         <span style={{fontSize:"0.72rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pair.recvName}</span>
       </div>
-      <span style={{fontSize:"0.78rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"rgba(255,255,255,0.5)",flexShrink:0}}>{maskAmount(amount)}</span>
+      <span style={{fontSize:"0.78rem",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"var(--text-3)",flexShrink:0}}>{maskAmount(amount)}</span>
       <span style={{fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",flexShrink:0,minWidth:30,textAlign:"left"}}>{timeAgo(op.ts,lang)}</span>
     </div>
   )
@@ -354,7 +354,7 @@ function ConfirmModal({isOpen, onClose, orderData}) {
     r.readAsDataURL(file)
   }
 
-  // ✅ الدالة الصحيحة — ترسل للـ API الحقيقي
+  // الدالة الصحيحة — ترسل للـ API الحقيقي
   const handleSubmit = async () => {
     if (!receipt) {
       alert(lang === "ar" ? "يرجى رفع صورة الإيصال أولاً" : "Please upload receipt")
@@ -379,7 +379,7 @@ function ConfirmModal({isOpen, onClose, orderData}) {
         console.warn('upload failed:', e.message)
       }
 
-      // ✅ تحويل اسم الوسيلة إلى enum صحيح
+      // تحويل اسم الوسيلة إلى enum صحيح
       const resolveMethod = (method) => {
         if (method.type === 'crypto') return 'USDT_TRC20'
         const name = (method.name || '').toLowerCase()
@@ -420,7 +420,7 @@ function ConfirmModal({isOpen, onClose, orderData}) {
       })
 
       const data = await res.json()
-      console.log('✅ Order created:', data)
+      console.log('Order created:', data)
 
       if (data.success) {
         setOrderNumber(data.order?.orderNumber || '')
@@ -724,7 +724,7 @@ function ExchangeForm() {
               </div>
               <div style={{flex:1,position:"relative"}}>
                 <input className="ex-amount-input" type="number" value={sendAmount} onChange={e=>setSendAmount(e.target.value)} placeholder="0.00" min="0" step="any"/>
-                <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:10,fontWeight:700,color:"var(--text-3)",background:"rgba(255,255,255,0.06)",border:"1px solid var(--border-1)",padding:"2px 7px",borderRadius:5,fontFamily:"'JetBrains Mono',monospace"}}>{sendMethod.symbol}</span>
+                <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:10,fontWeight:700,color:"var(--text-3)",background:"var(--cyan-dim)",border:"1px solid var(--border-1)",padding:"2px 7px",borderRadius:5,fontFamily:"'JetBrains Mono',monospace"}}>{sendMethod.symbol}</span>
               </div>
             </div>
             <div style={{display:"flex",gap:10,marginTop:6}}>
@@ -773,7 +773,7 @@ function ExchangeForm() {
               </div>
               <div style={{flex:1,position:"relative"}}>
                 <input className="ex-amount-input ex-readonly" type="number" readOnly value={receiveAmount} placeholder="0.00"/>
-                <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:10,fontWeight:700,color:"var(--text-3)",background:"rgba(255,255,255,0.06)",border:"1px solid var(--border-1)",padding:"2px 7px",borderRadius:5,fontFamily:"'JetBrains Mono',monospace"}}>{receiveMethod.symbol}</span>
+                <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:10,fontWeight:700,color:"var(--text-3)",background:"var(--cyan-dim)",border:"1px solid var(--border-1)",padding:"2px 7px",borderRadius:5,fontFamily:"'JetBrains Mono',monospace"}}>{receiveMethod.symbol}</span>
               </div>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:11,paddingTop:11,borderTop:"1px solid var(--border-1)"}}>
