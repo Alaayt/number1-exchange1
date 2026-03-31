@@ -6,7 +6,8 @@ const express        = require('express')
 const router         = express.Router()
 const Order          = require('../models/Order')
 const { protect, optionalProtect } = require('../middleware/auth')
-const { upload }     = require('../services/cloudinary')  // ← مرة واحدة فقط
+const { upload }     = require('../services/cloudinary')
+const telegramService = require('../services/telegram')
 
 // ══════════════════════════════════════════════
 // ⚠ Routes الثابتة لازم تكون قبل Routes الـ :id
