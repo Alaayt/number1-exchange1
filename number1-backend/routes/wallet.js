@@ -1,17 +1,13 @@
 // ============================================
-// routes/wallet.js — API المحفظة + N1 Credit
+// routes/wallet.js — API المحفظة
 // ============================================
 const express     = require('express')
 const router      = express.Router()
 const Wallet      = require('../models/Wallet')
 const Transaction = require('../models/Transaction')
 const Deposit     = require('../models/Deposit')
+const Setting     = require('../models/Setting')
 const { protect } = require('../middleware/auth')
-const cloudinary  = require('../services/cloudinary')
-const multer      = require('multer')
-
-// إعداد multer للرفع في الذاكرة
-const upload = multer({ storage: multer.memoryStorage() })
 
 // كل routes المحفظة تحتاج تسجيل دخول
 router.use(protect)
@@ -40,16 +36,14 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       wallet: {
-        _id:              wallet._id,
-        balance:          wallet.balance,        // USDT (أدمن)
-        n1Balance:        wallet.n1Balance,      // N1 Credit
-        currency:         wallet.currency,
-        totalDeposited:   wallet.totalDeposited,
-        totalWithdrawn:   wallet.totalWithdrawn,
-        totalN1Deposited: wallet.totalN1Deposited,
-        totalN1Withdrawn: wallet.totalN1Withdrawn,
-        isActive:         wallet.isActive,
-        createdAt:        wallet.createdAt
+        _id:            wallet._id,
+        walletId:       wallet.walletId,
+        balance:        wallet.balance,
+        currency:       wallet.currency,
+        totalDeposited: wallet.totalDeposited,
+        totalWithdrawn: wallet.totalWithdrawn,
+        isActive:       wallet.isActive,
+        createdAt:      wallet.createdAt
       },
       transactions
     })
@@ -90,54 +84,53 @@ router.get('/transactions', async (req, res) => {
 })
 
 // ══════════════════════════════════════════════
-// POST /api/wallet/deposit
-// المستخدم يطلب إيداع N1 Credit
+// GET /api/wallet/deposit-info
+// جلب عنوان USDT للإيداع (من إعدادات الأدمن)
 // ══════════════════════════════════════════════
-router.post('/deposit', upload.single('receipt'), async (req, res) => {
+router.get('/deposit-info', async (req, res) => {
   try {
-    const { type, amount, currency, txid } = req.body
+    const settings = await Setting.getSingleton()
+    res.json({
+      success: true,
+      depositInfo: {
+        usdtAddress: settings.depositUsdtAddress || '',
+        usdtNetwork: settings.depositUsdtNetwork || 'TRC20',
+        note:        settings.depositNote        || ''
+      }
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ══════════════════════════════════════════════
+// POST /api/wallet/deposit
+// المستخدم يرسل طلب إيداع USDT (TXID فقط)
+// ══════════════════════════════════════════════
+router.post('/deposit', async (req, res) => {
+  try {
+    const { amount, txid } = req.body
 
     // ─── Validation ───────────────────────────
-    if (!type || !['bank_transfer', 'usdt'].includes(type)) {
-      return res.status(400).json({ success: false, message: 'نوع الإيداع غير صحيح.' })
-    }
     if (!amount || isNaN(amount) || Number(amount) <= 0) {
       return res.status(400).json({ success: false, message: 'المبلغ غير صحيح.' })
     }
-    if (!currency || !['EGP', 'USDT'].includes(currency)) {
-      return res.status(400).json({ success: false, message: 'العملة غير صحيحة.' })
-    }
-
-    // bank_transfer يحتاج إيصال
-    if (type === 'bank_transfer' && !req.file) {
-      return res.status(400).json({ success: false, message: 'يرجى رفع إيصال التحويل.' })
-    }
-
-    // usdt يحتاج TXID
-    if (type === 'usdt' && !txid) {
+    if (!txid || !txid.trim()) {
       return res.status(400).json({ success: false, message: 'يرجى إدخال رقم المعاملة (TXID).' })
     }
 
-    let receiptUrl = null
-
-    // ─── رفع الإيصال لـ Cloudinary ────────────
-    if (type === 'bank_transfer' && req.file) {
-      const b64 = Buffer.from(req.file.buffer).toString('base64')
-      const dataURI = `data:${req.file.mimetype};base64,${b64}`
-      const result = await cloudinary.uploader.upload(dataURI, {
-        folder: 'number1/deposits',
-      })
-      receiptUrl = result.secure_url
+    // ─── منع التكرار: نفس الـ TXID ────────────
+    const existing = await Deposit.findOne({ txid: txid.trim() })
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'هذا الـ TXID مستخدم مسبقاً.' })
     }
 
     // ─── إنشاء طلب الإيداع ────────────────────
     const deposit = await Deposit.create({
-      user:       req.user._id,
-      type,
-      amount:     Number(amount),
-      currency,
-      receiptUrl,
-      txid:       txid || null,
+      user:   req.user._id,
+      type:   'usdt',
+      amount: Number(amount),
+      txid:   txid.trim(),
     })
 
     res.status(201).json({
@@ -182,55 +175,20 @@ router.get('/deposits', async (req, res) => {
 })
 
 // ══════════════════════════════════════════════
-// POST /api/wallet/withdraw
-// طلب سحب USDT من المستخدم (موجود — محسّن)
+// GET /api/wallet/withdraw-info
+// جلب بيانات التواصل للسحب (واتساب + تيليجرام)
 // ══════════════════════════════════════════════
-router.post('/withdraw', async (req, res) => {
+router.get('/withdraw-info', async (req, res) => {
   try {
-    const { amount, note } = req.body
-
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'المبلغ غير صحيح.' })
-    }
-
-    const wallet = await Wallet.findOne({ user: req.user._id })
-    if (!wallet || !wallet.isActive) {
-      return res.status(400).json({ success: false, message: 'المحفظة غير موجودة أو معطلة.' })
-    }
-
-    if (wallet.balance < amount) {
-      return res.status(400).json({
-        success: false,
-        message: `رصيد غير كافٍ. رصيدك الحالي: ${wallet.balance} USDT`
-      })
-    }
-
-    const balanceBefore   = wallet.balance
-    wallet.balance        -= amount
-    wallet.totalWithdrawn += amount
-    await wallet.save()
-
-    const transaction = await Transaction.create({
-      user:          req.user._id,
-      wallet:        wallet._id,
-      type:          'withdraw',
-      amount,
-      balanceBefore,
-      balanceAfter:  wallet.balance,
-      status:        'completed',
-      performedBy:   'user',
-      note:          note || null
-    })
-
+    const settings = await Setting.getSingleton()
     res.json({
       success: true,
-      message: 'تم طلب السحب بنجاح.',
-      balance: wallet.balance,
-      transaction
+      withdrawInfo: {
+        whatsapp:  settings.contactWhatsapp  || '',
+        telegram:  settings.contactTelegram  || '',
+      }
     })
-
   } catch (error) {
-    console.error('Withdraw error:', error)
     res.status(500).json({ success: false, message: 'Server error.' })
   }
 })

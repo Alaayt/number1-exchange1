@@ -174,43 +174,27 @@ router.get('/settings', async (req, res) => {
 })
 
 // ─── PUT /api/admin/settings ──────────────────
-// ✅ نسخة واحدة فقط — تحتوي على كل الحقول بما فيها الإيداع
 router.put('/settings', async (req, res) => {
   try {
     const allowed = [
-      // عام
       'platformName', 'platformActive', 'maintenanceMode',
       'platformNameAr', 'platformNameEn', 'platformUrl',
       'platformEnabled', 'registrationEnabled',
       'supportEmail', 'supportTelegram',
-
-      // بيانات التواصل
       'contactTelegram', 'contactWhatsapp', 'contactEmail', 'contactWebsite',
-
-      // إشعارات
       'telegramNotifications', 'emailNotifications',
       'telegramBotToken', 'telegramChatId',
-
-      // SMTP
       'smtpHost', 'smtpPort', 'smtpEmail', 'smtpPassword',
-
-      // الطلبات
       'minOrderUsdt', 'maxOrderUsdt', 'orderExpiryMins',
       'minOrderUsd', 'maxOrderUsd', 'orderExpiryMinutes',
       'usdtOrdersEnabled', 'walletOrdersEnabled',
       'bankTransferEnabled', 'maxDailyOrdersUser',
-
-      // API
       'moneygoApiKey', 'moneygoApiUrl', 'cryptoApiKey',
       'webhookUrl', 'environment',
-
-      // أمان
       'jwtRefreshEnabled', 'twoFactorAdmin', 'auditLogEnabled',
       'sessionExpireHours', 'maxLoginAttempts',
       'ipBanMinutes', 'maxConcurrentSessions',
-
-      // ── بيانات الإيداع ── ✅ جديد
-      'depositBankName', 'depositAccountName', 'depositAccountNumber',
+      // بيانات إيداع USDT
       'depositUsdtAddress', 'depositUsdtNetwork', 'depositNote',
     ]
 
@@ -310,6 +294,7 @@ router.get('/wallets/:userId', async (req, res) => {
   }
 })
 
+// ─── إيداع يدوي من الأدمن ─────────────────────
 router.post('/wallets/:userId/deposit', async (req, res) => {
   try {
     const { amount, note } = req.body
@@ -317,9 +302,9 @@ router.post('/wallets/:userId/deposit', async (req, res) => {
     let wallet = await Wallet.findOne({ user: req.params.userId })
     if (!wallet) wallet = await Wallet.create({ user: req.params.userId })
     if (!wallet.isActive) return res.status(400).json({ success: false, message: 'Wallet is inactive.' })
-    const balanceBefore = wallet.balance
-    wallet.balance        += parseFloat(amount)
-    wallet.totalDeposited += parseFloat(amount)
+    const balanceBefore     = wallet.balance
+    wallet.balance          += parseFloat(amount)
+    wallet.totalDeposited   += parseFloat(amount)
     await wallet.save()
     const transaction = await Transaction.create({
       user: req.params.userId, wallet: wallet._id, type: 'deposit',
@@ -327,6 +312,42 @@ router.post('/wallets/:userId/deposit', async (req, res) => {
       status: 'completed', performedBy: `admin:${req.user.email}`, note: note || 'Admin deposit'
     })
     res.json({ success: true, message: `تم إيداع ${amount} USDT بنجاح.`, balance: wallet.balance, transaction })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ─── تعديل يدوي من الأدمن (زيادة أو نقص) ─────
+router.post('/wallets/:userId/adjust', async (req, res) => {
+  try {
+    const { amount, note } = req.body
+    // amount يمكن أن يكون موجباً (زيادة) أو سالباً (نقص)
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return res.status(400).json({ success: false, message: 'Invalid amount.' })
+    }
+    let wallet = await Wallet.findOne({ user: req.params.userId })
+    if (!wallet) return res.status(404).json({ success: false, message: 'Wallet not found.' })
+    if (!wallet.isActive) return res.status(400).json({ success: false, message: 'Wallet is inactive.' })
+
+    const newBalance = wallet.balance + parseFloat(amount)
+    if (newBalance < 0) {
+      return res.status(400).json({ success: false, message: 'الرصيد لا يمكن أن يكون سالباً.' })
+    }
+
+    const balanceBefore = wallet.balance
+    wallet.balance = newBalance
+    if (parseFloat(amount) > 0) wallet.totalDeposited += parseFloat(amount)
+    else wallet.totalWithdrawn += Math.abs(parseFloat(amount))
+    await wallet.save()
+
+    await Transaction.create({
+      user: req.params.userId, wallet: wallet._id, type: 'admin_adjust',
+      amount: Math.abs(parseFloat(amount)), balanceBefore, balanceAfter: wallet.balance,
+      status: 'completed', performedBy: `admin:${req.user.email}`,
+      note: note || `Admin adjust: ${amount > 0 ? '+' : ''}${amount} USDT`
+    })
+
+    res.json({ success: true, message: 'تم تعديل الرصيد بنجاح.', balance: wallet.balance })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' })
   }
@@ -344,18 +365,22 @@ router.patch('/wallets/:userId/toggle', async (req, res) => {
   }
 })
 
-// ─── Deposit Admin Routes (N1 Credit) ─────────
+// ─── Deposit Admin Routes ──────────────────────
 const Deposit = require('../models/Deposit')
 
 router.get('/deposits', async (req, res) => {
   try {
-    const { status, type, page = 1, limit = 20 } = req.query
+    const { status, page = 1, limit = 20 } = req.query
     const filter = {}
     if (status) filter.status = status
-    if (type)   filter.type   = type
     const skip = (parseInt(page) - 1) * parseInt(limit)
     const [deposits, total] = await Promise.all([
-      Deposit.find(filter).populate('user', 'name email').populate('processedBy', 'name email').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Deposit.find(filter)
+        .populate('user', 'name email')
+        .populate('processedBy', 'name email')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
       Deposit.countDocuments(filter)
     ])
     res.json({ success: true, deposits, pagination: { page: parseInt(page), limit: parseInt(limit), total, pages: Math.ceil(total / parseInt(limit)) } })
@@ -364,10 +389,11 @@ router.get('/deposits', async (req, res) => {
   }
 })
 
+// ─── موافقة الأدمن → يضيف الرصيد على balance ──
 router.post('/deposits/:id/approve', async (req, res) => {
   try {
     const deposit = await Deposit.findById(req.params.id).populate('user', 'name email')
-    if (!deposit) return res.status(404).json({ success: false, message: 'طلب الإيداع غير موجود.' })
+    if (!deposit)                    return res.status(404).json({ success: false, message: 'طلب الإيداع غير موجود.' })
     if (deposit.status !== 'pending') return res.status(400).json({ success: false, message: 'هذا الطلب تمت معالجته مسبقاً.' })
 
     deposit.status      = 'approved'
@@ -375,22 +401,28 @@ router.post('/deposits/:id/approve', async (req, res) => {
     deposit.processedAt = new Date()
     await deposit.save()
 
+    // ─── إضافة الرصيد على balance (USDT) ─────
     let wallet = await Wallet.findOne({ user: deposit.user._id })
     if (!wallet) wallet = await Wallet.create({ user: deposit.user._id })
 
-    const balanceBefore = wallet.n1Balance
-    wallet.n1Balance        += deposit.amount
-    wallet.totalN1Deposited += deposit.amount
+    const balanceBefore     = wallet.balance
+    wallet.balance          += deposit.amount
+    wallet.totalDeposited   += deposit.amount
     await wallet.save()
 
     await Transaction.create({
       user: deposit.user._id, wallet: wallet._id, type: 'deposit',
-      amount: deposit.amount, balanceBefore, balanceAfter: wallet.n1Balance,
+      amount: deposit.amount, balanceBefore, balanceAfter: wallet.balance,
       status: 'completed', performedBy: `admin:${req.user.email}`,
-      note: `N1 Deposit approved — ${deposit.type} — ${deposit.currency}`
+      note: `USDT deposit approved — TXID: ${deposit.txid}`
     })
 
-    res.json({ success: true, message: `تمت الموافقة. تم إضافة ${deposit.amount} N1 للمستخدم.`, deposit, n1Balance: wallet.n1Balance })
+    res.json({
+      success: true,
+      message: `تمت الموافقة. تم إضافة ${deposit.amount} USDT للمستخدم.`,
+      deposit,
+      balance: wallet.balance
+    })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error.' })
   }
@@ -401,7 +433,7 @@ router.post('/deposits/:id/reject', async (req, res) => {
     const { reason } = req.body
     if (!reason || !reason.trim()) return res.status(400).json({ success: false, message: 'يرجى إدخال سبب الرفض.' })
     const deposit = await Deposit.findById(req.params.id)
-    if (!deposit) return res.status(404).json({ success: false, message: 'طلب الإيداع غير موجود.' })
+    if (!deposit)                    return res.status(404).json({ success: false, message: 'طلب الإيداع غير موجود.' })
     if (deposit.status !== 'pending') return res.status(400).json({ success: false, message: 'هذا الطلب تمت معالجته مسبقاً.' })
     deposit.status          = 'rejected'
     deposit.rejectionReason = reason.trim()

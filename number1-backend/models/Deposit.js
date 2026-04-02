@@ -1,5 +1,5 @@
 // ============================================
-// models/Deposit.js — طلبات إيداع N1 Credit
+// models/Deposit.js — طلبات إيداع USDT
 // ============================================
 const mongoose = require('mongoose')
 
@@ -12,10 +12,12 @@ const depositSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ─── نوع الإيداع ────────────────────────
+    // ─── نوع الإيداع (USDT فقط) ──────────────
+    // تم حذف bank_transfer نهائياً
     type: {
       type: String,
-      enum: ['bank_transfer', 'usdt'],
+      enum: ['usdt'],
+      default: 'usdt',
       required: true,
     },
 
@@ -26,23 +28,10 @@ const depositSchema = new mongoose.Schema(
       min: 1,
     },
 
-    // ─── العملة ──────────────────────────────
-    currency: {
-      type: String,
-      enum: ['EGP', 'USDT'],
-      required: true,
-    },
-
-    // ─── التحويل البنكي — إيصال Cloudinary ──
-    receiptUrl: {
-      type: String,
-      default: null,
-    },
-
-    // ─── USDT — رقم المعاملة ─────────────────
+    // ─── USDT — رقم المعاملة (TXID) ──────────
     txid: {
       type: String,
-      default: null,
+      required: true, // TXID إلزامي الحين لأنه الدليل الوحيد
     },
 
     // ─── الحالة ──────────────────────────────

@@ -22,10 +22,11 @@ const transactionSchema = new mongoose.Schema({
   // ─── نوع المعاملة ─────────────────────────
   type: {
     type: String,
-    enum: ['deposit', 'withdraw', 'exchange_debit'],
-    // deposit       = إيداع من الأدمن
-    // withdraw      = سحب من المستخدم
-    // exchange_debit = خصم عند استخدام الرصيد في طلب
+    enum: ['deposit', 'withdraw', 'exchange_debit', 'admin_adjust'],
+    // deposit        = إيداع أدمن بعد موافقته على طلب USDT
+    // withdraw       = سحب (يدوي عبر واتساب/تيليجرام)
+    // exchange_debit = خصم عند استخدام الرصيد في طلب تحويل
+    // admin_adjust   = تعديل يدوي من الأدمن (زيادة أو نقص)
     required: true
   },
 
