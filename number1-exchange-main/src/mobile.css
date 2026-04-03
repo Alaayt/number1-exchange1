@@ -433,6 +433,20 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
+   MY ORDERS & ORDER TRACK PAGES
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  /* تقليل الـ padding العلوي */
+  [style*="padding:'60px 24px'"] { padding: 24px 14px !important; }
+
+  /* تفاصيل الطلب — عمود واحد على الشاشات الصغيرة */
+  [style*="maxWidth:700"] [style*="gridTemplateColumns:'1fr 1fr'"],
+  [style*="maxWidth:800"] [style*="gridTemplateColumns:'1fr 1fr'"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
    CONTACT PAGE
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {

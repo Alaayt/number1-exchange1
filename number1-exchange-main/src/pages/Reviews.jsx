@@ -154,17 +154,6 @@ export default function Reviews() {
         <CarouselTrack reviews={row2} direction="right"/>
       </div>
 
-      {/* BestChange */}
-      <div style={{ padding:'0 24px', maxWidth:680, margin:'0 auto' }}>
-        <div style={{ textAlign:'center', padding:'26px 24px', background:'var(--card)', border:'1px solid var(--border-1)', borderRadius:20, position:'relative', overflow:'hidden' }}>
-          <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,transparent,var(--cyan),transparent)' }}/>
-          <div style={{ fontSize:'.68rem', color:'var(--text-3)', fontFamily:"'JetBrains Mono',monospace", marginBottom:6, letterSpacing:2 }}>VERIFIED ON</div>
-          <div style={{ fontFamily:"'Orbitron',sans-serif", fontSize:'1.1rem', color:'var(--cyan)', fontWeight:700, marginBottom:8 }}>BestChange.com</div>
-          <p style={{ fontSize:'.82rem', color:'var(--text-3)', margin:0, fontFamily:"'Tajawal',sans-serif", lineHeight:1.7 }}>
-            منصتنا مسجلة ومراجعة على BestChange — أكبر مجمع لمقارنة أسعار الصرافات
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
