@@ -3,9 +3,10 @@
 // خدمة HD Wallet لتوليد عناوين TRON فريدة لكل طلب
 // المسار: m/44'/195'/0'/0/{index}  (معيار TRON BIP44)
 // ═══════════════════════════════════════════════════
-const bip39  = require('bip39')
-const HDKey  = require('hdkey')
-const TronWeb = require('tronweb')
+const bip39    = require('bip39')
+const HDKey    = require('hdkey')
+const TronWebPkg = require('tronweb')
+const TronWeb  = TronWebPkg.default || TronWebPkg
 
 const TRON_PATH = "m/44'/195'/0'/0"
 

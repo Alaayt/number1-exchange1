@@ -9,9 +9,10 @@
 // ⚠️  لا تشارك الناتج مع أي أحد
 // ⚠️  شغّله على جهازك المحلي فقط — ليس على السيرفر
 // ═══════════════════════════════════════════════════════════
-const bip39  = require('bip39')
-const HDKey  = require('hdkey')
-const TronWeb = require('tronweb')
+const bip39    = require('bip39')
+const HDKey    = require('hdkey')
+const TronWebPkg = require('tronweb')
+const TronWeb  = TronWebPkg.default || TronWebPkg
 
 const mnemonic = process.argv[2]
 
