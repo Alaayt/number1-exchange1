@@ -64,20 +64,21 @@ function Msg({ text, isUser, time, robAnim }) {
     <div style={{
       display: 'flex', alignItems: 'flex-end', gap: 8,
       justifyContent: isUser ? 'flex-start' : 'flex-end',
-      marginBottom: 10, animation: 'msgIn 0.25s ease',
+      marginBottom: 12, animation: 'msgIn 0.25s ease',
     }}>
       {!isUser && <RobotAvatar size={34} animate={robAnim || 'idle'} />}
       <div style={{
-        maxWidth: '72%', padding: '10px 14px',
+        maxWidth: '74%', padding: '11px 15px',
         borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
         background: isUser
-          ? 'linear-gradient(135deg,rgba(0,210,255,0.15),rgba(0,134,179,0.2))'
-          : 'rgba(255,255,255,0.05)',
-        border: `1px solid ${isUser ? 'rgba(0,210,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
-        fontSize: '0.84rem', color: 'var(--text-1)', lineHeight: 1.6, direction: 'rtl',
+          ? 'linear-gradient(135deg,rgba(0,180,220,0.18),rgba(0,100,160,0.22))'
+          : 'var(--card)',
+        border: `1px solid ${isUser ? 'rgba(0,210,255,0.35)' : 'var(--border-1)'}`,
+        boxShadow: isUser ? '0 2px 10px rgba(0,210,255,0.12)' : '0 2px 8px rgba(0,0,0,0.08)',
+        fontSize: '0.84rem', color: 'var(--text-1)', lineHeight: 1.65, direction: 'rtl',
       }}>
         <div dangerouslySetInnerHTML={{ __html: parsed }} />
-        {time && <div style={{ fontSize: '0.6rem', color: 'var(--text-3)', marginTop: 4, fontFamily: "'JetBrains Mono',monospace", textAlign: isUser ? 'right' : 'left' }}>{time}</div>}
+        {time && <div style={{ fontSize: '0.58rem', color: 'var(--text-3)', marginTop: 5, fontFamily: "'JetBrains Mono',monospace", textAlign: isUser ? 'right' : 'left' }}>{time}</div>}
       </div>
     </div>
   )
@@ -214,30 +215,40 @@ export default function ChatBot() {
 
       {/* Chat Window */}
       {open && (
-        <div style={{ position:'fixed', bottom:100, left:24, zIndex:998, width:340, height:530, background:'var(--card)', border:'1px solid var(--border-2)', borderRadius:22, boxShadow:'0 24px 60px rgba(0,0,0,.65)', display:'flex', flexDirection:'column', overflow:'hidden', animation:'slideUp .25s ease' }}>
+        <div style={{ position:'fixed', bottom:100, left:24, zIndex:998, width:345, height:540, background:'var(--card)', border:'1px solid var(--border-2)', borderRadius:24, boxShadow:'0 28px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(0,210,255,0.08)', display:'flex', flexDirection:'column', overflow:'hidden', animation:'slideUp .25s ease' }}>
           <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:'linear-gradient(90deg,transparent,var(--cyan),var(--purple),transparent)' }} />
 
           {/* Header */}
-          <div style={{ background:'linear-gradient(135deg,#00b8d9 0%,#0055a5 100%)', padding:'14px 18px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-            <RobotAvatar size={46} animate={robAnim} />
+          <div style={{ background:'linear-gradient(135deg,#007fa8 0%,#0044a0 100%)', padding:'16px 18px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+            <div style={{ position:'relative' }}>
+              <RobotAvatar size={48} animate={robAnim} />
+              <div style={{ position:'absolute', bottom:0, right:0, width:12, height:12, borderRadius:'50%', background:'#00e5a0', border:'2px solid #0044a0', boxShadow:'0 0 6px #00e5a0' }} />
+            </div>
             <div style={{ flex:1 }}>
-              <div style={{ fontWeight:800, fontSize:'0.92rem', color:'#fff', letterSpacing:0.5 }}>N1-BOT المساعد الذكي</div>
-              <div style={{ fontSize:'0.68rem', color:'rgba(255,255,255,0.8)', display:'flex', alignItems:'center', gap:5, marginTop:2 }}>
-                <div style={{ width:6, height:6, borderRadius:'50%', background:'#00e5a0', boxShadow:'0 0 6px #00e5a0', animation:'fabPulse 2s infinite' }} />
+              <div style={{ fontWeight:900, fontSize:'0.95rem', color:'#fff', letterSpacing:0.3, fontFamily:"'Tajawal',sans-serif" }}>N1-BOT المساعد الذكي</div>
+              <div style={{ fontSize:'0.67rem', color:'rgba(255,255,255,0.75)', display:'flex', alignItems:'center', gap:5, marginTop:3, fontFamily:"'JetBrains Mono',monospace" }}>
+                <span style={{ width:6, height:6, borderRadius:'50%', background:'#00e5a0', display:'inline-block', animation:'fabPulse 2s infinite' }} />
                 متاح الآن · 24/7
               </div>
             </div>
-            <div style={{ fontSize:'0.62rem', color:'rgba(255,255,255,0.6)', fontFamily:"'JetBrains Mono',monospace", background:'rgba(255,255,255,0.12)', padding:'3px 8px', borderRadius:8 }}>NUMBER 1</div>
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+              <div style={{ fontSize:'0.58rem', color:'rgba(255,255,255,0.5)', fontFamily:"'JetBrains Mono',monospace", background:'rgba(255,255,255,0.1)', padding:'3px 8px', borderRadius:6, letterSpacing:1 }}>N1 AI</div>
+              <div style={{ display:'flex', gap:3 }}>
+                {['#ff5f57','#febc2e','#28c840'].map((c,i)=>(
+                  <div key={i} style={{ width:8, height:8, borderRadius:'50%', background:c, opacity:0.7 }} />
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Messages */}
-          <div style={{ flex:1, overflowY:'auto', padding:'16px 14px', display:'flex', flexDirection:'column', background:'var(--bg)' }}>
+          <div style={{ flex:1, overflowY:'auto', padding:'14px 13px 10px', display:'flex', flexDirection:'column', background:'var(--bg)', backgroundImage:'radial-gradient(ellipse 80% 60% at 50% 0%,rgba(0,210,255,0.04),transparent)' }}>
             {messages.map(m => <Msg key={m.id} text={m.text} isUser={m.isUser} time={m.time} robAnim={m.robAnim} />)}
 
             {typing && (
               <div style={{ display:'flex', alignItems:'flex-end', gap:8, justifyContent:'flex-end', marginBottom:10, animation:'msgIn .25s ease' }}>
                 <RobotAvatar size={34} animate="talking" />
-                <div style={{ padding:'10px 14px', borderRadius:'4px 18px 18px 18px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ padding:'10px 14px', borderRadius:'4px 18px 18px 18px', background:'var(--card)', border:'1px solid var(--border-1)', boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
                   <TypingDots />
                 </div>
               </div>

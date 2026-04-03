@@ -87,9 +87,6 @@ ${recipientLabel}: <code>${order.moneygo.recipientPhone || '—'}</code>
     [
       { text: '✅ موافقة', callback_data: `approve_${order._id}` },
       { text: '❌ رفض',    callback_data: `reject_${order._id}`  }
-    ],
-    [
-      { text: '✔️ اكتمل', callback_data: `complete_${order._id}` }
     ]
   ]
 
@@ -148,6 +145,57 @@ exports.answerCallbackQuery = async (callbackQueryId, text) => {
   } catch (error) {
     console.error('answerCallbackQuery error:', error.message)
   }
+}
+
+// ─── إشعار طلب إيداع محفظة ───────────────────
+exports.notifyDepositRequest = async (deposit, user) => {
+  const text = `
+💰 <b>طلب إيداع محفظة — Number1</b>
+━━━━━━━━━━━━━━━━━━━
+👤 <b>المستخدم:</b> ${user.name}
+📧 <b>الإيميل:</b> ${user.email}
+━━━━━━━━━━━━━━━━━━━
+💵 <b>المبلغ:</b> <code>${deposit.amount}</code> USDT
+🔗 <b>TXID:</b> <code>${deposit.txid}</code>
+🆔 <b>مرجع:</b> <code>${deposit._id}</code>
+━━━━━━━━━━━━━━━━━━━
+⏰ ${new Date().toLocaleString('ar-EG')}
+  `.trim()
+
+  const inline_keyboard = [
+    [
+      { text: '✅ قبول — إضافة للمحفظة', callback_data: `dep-approve_${deposit._id}` },
+      { text: '❌ رفض',                   callback_data: `dep-reject_${deposit._id}`  }
+    ]
+  ]
+
+  return await exports.sendMessage(text, { reply_markup: { inline_keyboard } })
+}
+
+// ─── إشعار تحويل من المحفظة إلى MoneyGo ──────
+exports.notifyWalletTransfer = async ({ amount, recipientId, recipientName, user, newBalance }) => {
+  const text = `
+🔄 <b>طلب تحويل من المحفظة — Number1</b>
+━━━━━━━━━━━━━━━━━━━
+👤 <b>المستخدم:</b> ${user.name}
+📧 <b>الإيميل:</b> ${user.email}
+━━━━━━━━━━━━━━━━━━━
+💵 <b>المبلغ:</b> <code>${amount}</code> USDT
+🎯 <b>MoneyGo ID:</b> <code>${recipientId}</code>
+${recipientName ? `👤 <b>اسم المستلم:</b> ${recipientName}` : ''}
+━━━━━━━━━━━━━━━━━━━
+💼 <b>الرصيد بعد الخصم:</b> ${newBalance} USDT
+⏰ ${new Date().toLocaleString('ar-EG')}
+  `.trim()
+
+  const inline_keyboard = [
+    [
+      { text: '✅ تم الإرسال على MoneyGo', callback_data: 'transfer-done' },
+      { text: '❌ رفض ورد الرصيد',          callback_data: 'transfer-done' }
+    ]
+  ]
+
+  return await exports.sendMessage(text, { reply_markup: { inline_keyboard } })
 }
 
 // ─── تعديل رسالة موجودة ──────────────────────

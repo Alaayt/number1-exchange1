@@ -26,17 +26,19 @@ export const RATES_DATA = [
 
 // ══ وسائل الإرسال — صور من public/images/ ══
 export const SEND_METHODS = [
-  { id:'vodafone',  name:'فودافون كاش',  nameEn:'Vodafone Cash',  symbol:'V', color:'#e40000', type:'egp',    flag:'🇪🇬', img:'/images/vodafone.png'  },
-  { id:'instapay',  name:'إنستا باي',    nameEn:'Instapay',       symbol:'I', color:'#1a56db', type:'egp',    flag:'🇪🇬', img:'/images/instapay.png'  },
-  { id:'etisalat',  name:'اتصالات كاش',  nameEn:'Etisalat Cash',  symbol:'E', color:'#009a44', type:'egp',    flag:'🇪🇬', img:'/images/etisalat.png'  },
-  { id:'usdt-trc',  name:'USDT',         nameEn:'USDT',           symbol:'₮', color:'#26a17b', type:'crypto', flag:'USDT', img:'/images/usdt.png'      },
-  { id:'mgo-send',  name:'MoneyGo USD',  nameEn:'MoneyGo USD',    symbol:'M', color:'#e91e63', type:'crypto', flag:'MGO', img:'/images/moneygo.png'   },
+  { id:'vodafone',    name:'فودافون كاش',       nameEn:'Vodafone Cash',        symbol:'V', color:'#e40000', type:'egp',    flag:'🇪🇬',   img:'/images/vodafone.png'  },
+  { id:'instapay',    name:'إنستا باي',          nameEn:'Instapay',             symbol:'I', color:'#1a56db', type:'egp',    flag:'🇪🇬',   img:'/images/instapay.png'  },
+  { id:'etisalat',    name:'اتصالات كاش',        nameEn:'Etisalat Cash',        symbol:'E', color:'#009a44', type:'egp',    flag:'🇪🇬',   img:'/images/etisalat.png'  },
+  { id:'usdt-trc',    name:'USDT',               nameEn:'USDT',                 symbol:'₮', color:'#26a17b', type:'crypto', flag:'USDT',  img:'/images/usdt.png'      },
+  { id:'mgo-send',    name:'MoneyGo USD',        nameEn:'MoneyGo USD',          symbol:'M', color:'#e91e63', type:'crypto', flag:'MGO',   img:'/images/moneygo.png'   },
+  { id:'wallet-usdt', name:'حساب داخلي USDT',   nameEn:'Internal USDT Wallet', symbol:'₮', color:'#0a7c5e', type:'wallet', flag:'N1',    img:'/images/usdt.png', walletOnly:true },
 ]
 
 // ══ وسائل الاستلام — صور من public/images/ ══
 export const RECEIVE_METHODS = [
-  { id:'mgo-recv',  name:'MoneyGo USD', nameEn:'MoneyGo USD', symbol:'M', color:'#e91e63', type:'crypto', img:'/images/moneygo.png'  },
-  { id:'usdt-recv', name:'USDT TRC20',  nameEn:'USDT TRC20',  symbol:'₮', color:'#26a17b', type:'crypto', img:'/images/usdt.png'     },
+  { id:'mgo-recv',   name:'MoneyGo USD',        nameEn:'MoneyGo USD',          symbol:'M', color:'#e91e63', type:'crypto', img:'/images/moneygo.png'  },
+  { id:'usdt-recv',  name:'USDT TRC20',          nameEn:'USDT TRC20',           symbol:'₮', color:'#26a17b', type:'crypto', img:'/images/usdt.png'     },
+  { id:'wallet-recv', name:'حساب داخلي USDT',   nameEn:'Internal USDT Wallet', symbol:'₮', color:'#0a7c5e', type:'wallet', img:'/images/usdt.png', walletOnly:true },
 ]
 
 export const TRANSFER_INFO = {
@@ -48,16 +50,19 @@ export const TRANSFER_INFO = {
 }
 
 export const EXCHANGE_RATES = {
-  'vodafone_mgo-recv':   0.0265,
-  'vodafone_usdt-recv':  0.0265,
-  'instapay_mgo-recv':   0.0265,
-  'instapay_usdt-recv':  0.0265,
-  'etisalat_mgo-recv':   0.0263,
-  'etisalat_usdt-recv':  0.0263,
-  'usdt-trc_mgo-recv':   1.00598,
-  'usdt-trc_usdt-recv':  1.0,
-  'mgo-send_usdt-recv':  0.9945,
-  'mgo-send_mgo-recv':   1.0,
+  'vodafone_mgo-recv':      0.0265,
+  'vodafone_usdt-recv':     0.0265,
+  'instapay_mgo-recv':      0.0265,
+  'instapay_usdt-recv':     0.0265,
+  'etisalat_mgo-recv':      0.0263,
+  'etisalat_usdt-recv':     0.0263,
+  'usdt-trc_mgo-recv':      1.00598,
+  'usdt-trc_usdt-recv':     1.0,
+  'mgo-send_usdt-recv':     0.9945,
+  'mgo-send_mgo-recv':      1.0,
+  // ── حساب داخلي ──
+  'usdt-trc_wallet-recv':   1.0,   // إيداع USDT → محفظة داخلية
+  'wallet-usdt_mgo-recv':   1.0,   // تحويل محفظة داخلية → MoneyGo
 }
 
 export const REVIEWS = [

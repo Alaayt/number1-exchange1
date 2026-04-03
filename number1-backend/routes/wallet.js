@@ -133,6 +133,14 @@ router.post('/deposit', async (req, res) => {
       txid:   txid.trim(),
     })
 
+    // ─── إشعار التيليجرام ──────────────────────
+    try {
+      const telegramService = require('../services/telegram')
+      await telegramService.notifyDepositRequest(deposit, req.user)
+    } catch (tgErr) {
+      console.warn('Telegram deposit notify error:', tgErr.message)
+    }
+
     res.status(201).json({
       success: true,
       message: 'تم إرسال طلب الإيداع. سيتم مراجعته قريباً.',
@@ -170,6 +178,75 @@ router.get('/deposits', async (req, res) => {
     })
 
   } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
+// ══════════════════════════════════════════════
+// POST /api/wallet/transfer-to-moneygo
+// تحويل من رصيد المحفظة إلى MoneyGo
+// ══════════════════════════════════════════════
+router.post('/transfer-to-moneygo', async (req, res) => {
+  try {
+    const { amount, recipientId, recipientName } = req.body
+
+    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, message: 'المبلغ غير صحيح.' })
+    }
+    if (!recipientId || recipientId.trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'يرجى إدخال معرف MoneyGo.' })
+    }
+
+    const wallet = await getOrCreateWallet(req.user._id)
+
+    if (wallet.balance < Number(amount)) {
+      return res.status(400).json({
+        success: false,
+        message: `رصيدك غير كافٍ. رصيدك الحالي: ${wallet.balance} USDT`
+      })
+    }
+
+    // ─── خصم الرصيد فوراً ────────────────────
+    const balanceBefore = wallet.balance
+    wallet.balance      -= Number(amount)
+    wallet.totalWithdrawn += Number(amount)
+    await wallet.save()
+
+    // ─── تسجيل المعاملة ──────────────────────
+    await Transaction.create({
+      user:          req.user._id,
+      wallet:        wallet._id,
+      type:          'exchange_debit',
+      amount:        Number(amount),
+      balanceBefore,
+      balanceAfter:  wallet.balance,
+      status:        'completed',
+      performedBy:   'user',
+      note:          `تحويل إلى MoneyGo: ${recipientId.trim()}`
+    })
+
+    // ─── إشعار التيليجرام ────────────────────
+    try {
+      const telegramService = require('../services/telegram')
+      await telegramService.notifyWalletTransfer({
+        amount:        Number(amount),
+        recipientId:   recipientId.trim(),
+        recipientName: recipientName || '',
+        user:          req.user,
+        newBalance:    wallet.balance
+      })
+    } catch (tgErr) {
+      console.warn('Telegram wallet transfer notify error:', tgErr.message)
+    }
+
+    res.json({
+      success:    true,
+      message:    'تم إرسال طلب التحويل بنجاح. سيُرسَل المبلغ على MoneyGo قريباً.',
+      newBalance: wallet.balance
+    })
+
+  } catch (error) {
+    console.error('Wallet transfer error:', error)
     res.status(500).json({ success: false, message: 'Server error.' })
   }
 })

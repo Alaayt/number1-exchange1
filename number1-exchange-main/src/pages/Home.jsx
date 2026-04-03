@@ -349,11 +349,15 @@ function ConfirmModal({isOpen, onClose, orderData}) {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
+  const [txid, setTxid] = useState('')
+  const [txidErr, setTxidErr] = useState('')
   const fileRef = useRef(null)
 
   if (!isOpen || !orderData) return null
 
-  const isEgp = orderData.sendMethod.type === "egp"
+  const isWalletDeposit  = orderData.receiveMethod?.id === 'wallet-recv'
+  const isWalletTransfer = orderData.sendMethod?.id   === 'wallet-usdt'
+  const isEgp = !isWalletDeposit && !isWalletTransfer && orderData.sendMethod.type === "egp"
   const adminItem = orderData.sendItem
   const fallback  = TRANSFER_INFO[orderData.sendMethod.id] || {}
   // قيم العرض: من لوحة التحكم أولاً، ثم الـ fallback المحلي
@@ -384,6 +388,40 @@ function ConfirmModal({isOpen, onClose, orderData}) {
   const handleSubmit = async () => {
     setLoading(true)
     try {
+      const token = localStorage.getItem('n1_token')
+
+      // ── إيداع في المحفظة الداخلية (USDT → Wallet) ──
+      if (isWalletDeposit) {
+        if (!txid.trim()) { setTxidErr('يرجى إدخال رقم المعاملة (TXID)'); setLoading(false); return }
+        const res  = await fetch(`${API}/api/wallet/deposit`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body:    JSON.stringify({ amount: parseFloat(orderData.sendAmount), txid: txid.trim() })
+        })
+        const data = await res.json()
+        if (data.success) setSubmitted(true)
+        else alert(data.message || 'حدث خطأ')
+        setLoading(false); return
+      }
+
+      // ── تحويل من المحفظة إلى MoneyGo ──
+      if (isWalletTransfer) {
+        const res  = await fetch(`${API}/api/wallet/transfer-to-moneygo`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body:    JSON.stringify({
+            amount:        parseFloat(orderData.sendAmount),
+            recipientId:   orderData.recipientId,
+            recipientName: orderData.email?.split('@')[0] || ''
+          })
+        })
+        const data = await res.json()
+        if (data.success) setSubmitted(true)
+        else alert(data.message || 'حدث خطأ')
+        setLoading(false); return
+      }
+
+      // ── تدفق عادي ──
       // 1 — رفع الصورة
       let receiptImageUrl = ''
       try {
@@ -466,6 +504,8 @@ function ConfirmModal({isOpen, onClose, orderData}) {
     setLoading(false)
     setCopied(false)
     setOrderNumber('')
+    setTxid('')
+    setTxidErr('')
     onClose()
   }
 
@@ -500,7 +540,84 @@ function ConfirmModal({isOpen, onClose, orderData}) {
               <p style={{fontSize:"0.85rem",color:"var(--text-2)",lineHeight:1.65}}>{t("confirm_success_desc")}</p>
               <button onClick={handleClose} style={{marginTop:20,padding:"12px 30px",background:"linear-gradient(135deg,#00c97a,#009960)",border:"none",borderRadius:12,color:"#fff",fontFamily:"'Tajawal',sans-serif",fontSize:"1rem",fontWeight:800,cursor:"pointer"}}>{t("confirm_success_btn")}</button>
             </div>
+          ) : isWalletTransfer ? (
+            // ── تحويل من المحفظة إلى MoneyGo ──
+            <>
+              <div style={{background:"rgba(0,210,255,0.04)",border:"1px solid var(--border-1)",borderRadius:12,padding:"13px 16px"}}>
+                <div style={{fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",marginBottom:10,letterSpacing:1}}>ملخص التحويل</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,fontSize:"0.88rem"}}>
+                  <span style={{color:"var(--text-2)"}}>من المحفظة الداخلية</span>
+                  <span style={{fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"var(--red)"}}>{orderData.sendAmount} USDT</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:"0.88rem"}}>
+                  <span style={{color:"var(--text-2)"}}>إلى MoneyGo</span>
+                  <span style={{fontWeight:700,color:"var(--green)",fontFamily:"'JetBrains Mono',monospace"}}>{orderData.receiveAmount} USD</span>
+                </div>
+                <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid var(--border-1)",fontSize:"0.82rem",color:"var(--text-3)",display:"flex",gap:6}}>
+                  <span>المستلِم:</span>
+                  <strong style={{color:"var(--cyan)",fontFamily:"'JetBrains Mono',monospace"}}>{orderData.recipientId}</strong>
+                </div>
+              </div>
+              <div style={{background:"rgba(245,158,11,0.06)",border:"1px dashed rgba(245,158,11,0.25)",borderRadius:9,padding:"9px 13px",fontSize:"0.78rem",color:"var(--gold)",display:"flex",alignItems:"center",gap:8}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                سيتم خصم المبلغ من محفظتك فوراً وإرساله على MoneyGo خلال دقائق.
+              </div>
+              <button onClick={handleSubmit} disabled={loading}
+                style={{width:"100%",padding:13,background:"linear-gradient(135deg,#009fc0,#006e9e)",border:"none",borderRadius:12,fontFamily:"'Tajawal',sans-serif",fontSize:"1.02rem",fontWeight:800,color:"#fff",cursor:loading?"not-allowed":"pointer",transition:"all 0.3s",opacity:loading?0.7:1}}>
+                {loading?"جاري التحويل...":"تأكيد التحويل"}
+              </button>
+            </>
+          ) : isWalletDeposit ? (
+            // ── إيداع في المحفظة الداخلية ──
+            <>
+              <div style={{background:"rgba(0,210,255,0.04)",border:"1px solid var(--border-1)",borderRadius:12,padding:"13px 16px"}}>
+                <div style={{fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",marginBottom:6,letterSpacing:1}}>إيداع USDT → محفظة داخلية</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:"0.88rem"}}>
+                  <span style={{color:"var(--text-2)"}}>المبلغ</span>
+                  <span style={{fontWeight:700,fontFamily:"'JetBrains Mono',monospace"}}>{orderData.sendAmount} USDT</span>
+                </div>
+              </div>
+              {/* خطوة 1: عنوان الإيداع */}
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:"var(--cyan-dim)",border:"1px solid var(--border-2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:700,color:"var(--cyan)",flexShrink:0}}>1</div>
+                  <span style={{fontSize:"0.88rem",fontWeight:700}}>أرسل USDT TRC20 على هذا العنوان</span>
+                </div>
+                <div style={{background:"rgba(0,0,0,0.25)",border:"1px solid var(--border-1)",borderRadius:12,padding:"14px 16px"}}>
+                  <div style={{fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",marginBottom:6}}>عنوان محفظة USDT TRC20</div>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{flex:1,fontFamily:"'JetBrains Mono',monospace",fontSize:"0.75rem",fontWeight:700,color:"var(--cyan)",wordBreak:"break-all"}}>
+                      {(typeof orderData.sendItem === 'object' && orderData.sendItem?.address) || 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE'}
+                    </div>
+                    <button onClick={()=>{navigator.clipboard.writeText((orderData.sendItem?.address)||'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE');setCopied(true);setTimeout(()=>setCopied(false),2000)}}
+                      style={{flexShrink:0,padding:"8px 14px",background:copied?"rgba(0,229,160,0.15)":"var(--cyan-dim)",border:`1px solid ${copied?"rgba(0,229,160,0.3)":"var(--border-2)"}`,borderRadius:9,color:copied?"var(--green)":"var(--cyan)",fontFamily:"'JetBrains Mono',monospace",fontSize:"0.75rem",fontWeight:700,cursor:"pointer"}}>
+                      {copied?"✓ تم":"نسخ"}
+                    </button>
+                  </div>
+                  <div style={{marginTop:6,fontSize:"0.7rem",color:"var(--text-3)"}}>⚠ تأكد من شبكة TRC20 فقط</div>
+                </div>
+              </div>
+              {/* خطوة 2: TXID */}
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:"var(--cyan-dim)",border:"1px solid var(--border-2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:700,color:"var(--cyan)",flexShrink:0}}>2</div>
+                  <span style={{fontSize:"0.88rem",fontWeight:700}}>أدخل رقم المعاملة (TXID)</span>
+                </div>
+                <input value={txid} onChange={e=>{setTxid(e.target.value);setTxidErr('')}}
+                  placeholder="رقم المعاملة على البلوكتشين..."
+                  style={{width:"100%",padding:"12px 16px",background:"rgba(255,255,255,0.03)",border:`1px solid ${txidErr?"rgba(239,68,68,0.6)":"var(--border-1)"}`,borderRadius:11,color:"var(--text-1)",fontFamily:"'JetBrains Mono',monospace",fontSize:"0.82rem",outline:"none",direction:"ltr"}}
+                  onFocus={e=>e.target.style.borderColor="var(--cyan)"}
+                  onBlur={e=>e.target.style.borderColor=txidErr?"rgba(239,68,68,0.6)":"var(--border-1)"}
+                />
+                {txidErr&&<div style={{marginTop:4,fontSize:"0.68rem",color:"#f87171",fontFamily:"'JetBrains Mono',monospace"}}>⚠ {txidErr}</div>}
+              </div>
+              <button onClick={handleSubmit} disabled={loading}
+                style={{width:"100%",padding:13,background:"linear-gradient(135deg,#009fc0,#006e9e)",border:"none",borderRadius:12,fontFamily:"'Tajawal',sans-serif",fontSize:"1.02rem",fontWeight:800,color:"#fff",cursor:loading?"not-allowed":"pointer",transition:"all 0.3s",opacity:loading?0.7:1}}>
+                {loading?"جاري الإرسال...":"إرسال طلب الإيداع"}
+              </button>
+            </>
           ) : (
+            // ── التدفق العادي ──
             <>
               <div style={{background:"rgba(0,210,255,0.04)",border:"1px solid var(--border-1)",borderRadius:12,padding:"13px 16px"}}>
                 <div style={{fontSize:"0.68rem",color:"var(--text-3)",fontFamily:"'JetBrains Mono',monospace",marginBottom:10,letterSpacing:1}}>{t("confirm_summary").toUpperCase()}</div>
@@ -725,6 +842,8 @@ function ExchangeForm() {
   const [emailErr,setEmailErr]=useState('')
   const [phoneErr,setPhoneErr]=useState('')
   const [recipientErr,setRecipientErr]=useState('')
+  const {user}=useAuth()
+  const [walletBalance,setWalletBalance]=useState(null)
 
   const validateEmail=v=>{
     if(!v) return lang==='ar'?'البريد الإلكتروني مطلوب':'Email is required'
@@ -749,8 +868,47 @@ function ExchangeForm() {
       .catch(()=>{})
   },[])
 
+  // جلب رصيد المحفظة عند تسجيل الدخول
+  useEffect(()=>{
+    if(!user){setWalletBalance(null);return}
+    const token=localStorage.getItem('n1_token')
+    fetch(`${API}/api/wallet`,{headers:{Authorization:`Bearer ${token}`}})
+      .then(r=>r.json())
+      .then(d=>{if(d.success)setWalletBalance(d.wallet.balance)})
+      .catch(()=>{})
+  },[user])
+
   const isEgp=sendMethod.type==="egp"
   const isUSDT=sendMethod.id==="usdt-trc"
+  const isWalletSend=sendMethod.id==='wallet-usdt'
+  const isWalletRecv=receiveMethod.id==='wallet-recv'
+
+  // تصفية الوسائل — المحفظة الداخلية للمسجلين فقط
+  const filteredSendMethods=useMemo(()=>{
+    let m=SEND_METHODS.filter(s=>!s.walletOnly||!!user)
+    if(isWalletRecv) m=m.filter(s=>s.id==='usdt-trc')
+    return m
+  },[user,isWalletRecv])
+  const filteredRecvMethods=useMemo(()=>{
+    let m=RECEIVE_METHODS.filter(r=>!r.walletOnly||!!user)
+    if(isWalletSend) m=m.filter(r=>r.id==='mgo-recv')
+    return m
+  },[user,isWalletSend])
+
+  // إصلاح تلقائي للطرف المقابل عند اختيار المحفظة
+  useEffect(()=>{
+    if(isWalletSend&&receiveMethod.id!=='mgo-recv'){
+      const mgo=RECEIVE_METHODS.find(m=>m.id==='mgo-recv')
+      if(mgo) setReceiveMethod(mgo)
+    }
+  },[isWalletSend])
+  useEffect(()=>{
+    if(isWalletRecv&&sendMethod.id!=='usdt-trc'){
+      const usdt=SEND_METHODS.find(m=>m.id==='usdt-trc')
+      if(usdt) setSendMethod(usdt)
+    }
+  },[isWalletRecv])
+
   const baseRate=useMemo(()=>{const key=`${sendMethod.id}_${receiveMethod.id}`;return EXCHANGE_RATES[key]||1},[sendMethod,receiveMethod])
   const currentRate=baseRate*rateFactor
   const receiveAmount=useMemo(()=>{const amt=parseFloat(sendAmount)||0;return amt>0?(amt*currentRate).toFixed(4):""},[sendAmount,currentRate])
@@ -770,13 +928,26 @@ function ExchangeForm() {
   const recipientPh=receiveMethod.id==="mgo-recv"?"MGO-XXXXXXXXX":"T... — TRC20"
 
   const handleSubmit=()=>{
-    const eErr=validateEmail(email)
+    // فحص تسجيل الدخول للمحفظة الداخلية
+    if((isWalletSend||isWalletRecv)&&!user){
+      alert(lang==='ar'?'يجب تسجيل الدخول لاستخدام المحفظة الداخلية':'Please login to use the internal wallet')
+      return
+    }
+    // فحص الرصيد عند التحويل من المحفظة
+    if(isWalletSend){
+      const amt=parseFloat(sendAmount)||0
+      if(walletBalance===null||walletBalance<amt){
+        alert(lang==='ar'?`رصيدك غير كافٍ. الرصيد الحالي: ${walletBalance??0} USDT`:`Insufficient balance. Current: ${walletBalance??0} USDT`)
+        return
+      }
+    }
+    const eErr=isWalletSend?'':validateEmail(email)
     const pErr=isEgp?validatePhone(userPhone):''
-    const rErr=validateRecipient(recipientId)
+    const rErr=isWalletSend?validateRecipient(recipientId):validateRecipient(recipientId)
     setEmailErr(eErr); setPhoneErr(pErr); setRecipientErr(rErr)
     if(eErr||pErr||rErr) return
     if(!aml||!tos){alert(lang==="ar"?"يرجى الموافقة على الشروط والسياسات":"Please agree to the terms");return}
-    if(parseFloat(sendAmount)<10){alert(lang==="ar"?"الحد الأدنى للتحويل 10 وحدة":"Minimum transfer is 10 units");return}
+    if(parseFloat(sendAmount)<1){alert(lang==="ar"?"الحد الأدنى 1 USDT":"Minimum is 1 USDT");return}
     // إيجاد وسيلة الدفع من لوحة التحكم بالمطابقة عبر الـ id
     let sendItem = null
     if(sendMethod.type==='crypto'){
@@ -785,7 +956,7 @@ function ExchangeForm() {
       const id = sendMethod.id  // vodafone | instapay | etisalat
       sendItem = adminMethods.wallets.find(w=>(w.name||'').toLowerCase().includes(id)) || null
     }
-    setOrderData({ sendMethod, receiveMethod, sendAmount, receiveAmount, email, userPhone, recipientId, sendItem })
+    setOrderData({ sendMethod, receiveMethod, sendAmount, receiveAmount, email: email||user?.email||'', userPhone, recipientId, sendItem })
     setModalOpen(true)
   }
 
@@ -868,6 +1039,13 @@ function ExchangeForm() {
         <div className="ex-currency-stack" style={{display:"flex",flexDirection:"column",gap:0}}>
           <div className="ex-card">
             <SecLabel color="blue" icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>}>{lang==="ar"?"ترسل":"YOU SEND"}</SecLabel>
+            {isWalletSend&&(
+              <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(0,229,160,0.08)",border:"1px solid rgba(0,229,160,0.2)",borderRadius:9,padding:"7px 11px",marginBottom:10,fontSize:"0.78rem"}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span style={{color:"var(--text-2)"}}>{lang==="ar"?"رصيد محفظتك:":"Your balance:"}</span>
+                <strong style={{color:"var(--green)",fontFamily:"'JetBrains Mono',monospace"}}>{walletBalance??0} USDT</strong>
+              </div>
+            )}
             <div style={{display:"flex",gap:10,alignItems:"stretch"}}>
               <div style={{position:"relative"}}>
                 <div className="ex-currency-box" onClick={(e)=>{e.stopPropagation();setOpenPicker(openPicker==="send"?null:"send")}}>
@@ -878,7 +1056,7 @@ function ExchangeForm() {
                   </div>
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" style={{transition:"transform .2s",transform:openPicker==="send"?"rotate(180deg)":"none"}}><polyline points="2,4 7,9 12,4"/></svg>
                 </div>
-                <CurrencyInlineDropdown options={SEND_METHODS} selected={sendMethod} onSelect={handleSendMethodChange} open={openPicker==="send"} onClose={closePicker}/>
+                <CurrencyInlineDropdown options={filteredSendMethods} selected={sendMethod} onSelect={handleSendMethodChange} open={openPicker==="send"} onClose={closePicker}/>
               </div>
               <div style={{flex:1,position:"relative"}}>
                 <input className="ex-amount-input" type="number" value={sendAmount} onChange={e=>setSendAmount(e.target.value)} placeholder="0.00" min="0" step="any"/>
@@ -927,7 +1105,7 @@ function ExchangeForm() {
                   </div>
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" style={{transition:"transform .2s",transform:openPicker==="receive"?"rotate(180deg)":"none"}}><polyline points="2,4 7,9 12,4"/></svg>
                 </div>
-                <CurrencyInlineDropdown options={RECEIVE_METHODS} selected={receiveMethod} onSelect={setReceiveMethod} open={openPicker==="receive"} onClose={closePicker}/>
+                <CurrencyInlineDropdown options={filteredRecvMethods} selected={receiveMethod} onSelect={setReceiveMethod} open={openPicker==="receive"} onClose={closePicker}/>
               </div>
               <div style={{flex:1,position:"relative"}}>
                 <input className="ex-amount-input ex-readonly" type="number" readOnly value={receiveAmount} placeholder="0.00"/>

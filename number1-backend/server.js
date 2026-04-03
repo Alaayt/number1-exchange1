@@ -57,8 +57,64 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const action  = data.substring(0, underscoreIndex);
     const orderId = data.substring(underscoreIndex + 1);
 
-    const Order           = require('./models/Order');
     const telegramService = require('./services/telegram');
+
+    // ─── معالجة طلبات إيداع المحفظة ──────────
+    if (action === 'dep-approve' || action === 'dep-reject') {
+      const Deposit     = require('./models/Deposit')
+      const Wallet      = require('./models/Wallet')
+      const Transaction = require('./models/Transaction')
+
+      const deposit = await Deposit.findById(orderId)
+      if (!deposit) {
+        await telegramService.answerCallbackQuery(callbackQueryId, '❌ الطلب غير موجود')
+        return res.json({ ok: true })
+      }
+      if (deposit.status !== 'pending') {
+        await telegramService.answerCallbackQuery(callbackQueryId, '⚠️ تم معالجة هذا الطلب مسبقاً')
+        return res.json({ ok: true })
+      }
+
+      if (action === 'dep-approve') {
+        deposit.status      = 'approved'
+        deposit.processedAt = new Date()
+        await deposit.save()
+
+        let wallet = await Wallet.findOne({ user: deposit.user })
+        if (!wallet) wallet = await Wallet.create({ user: deposit.user })
+
+        const balanceBefore   = wallet.balance
+        wallet.balance        += deposit.amount
+        wallet.totalDeposited += deposit.amount
+        await wallet.save()
+
+        await Transaction.create({
+          user:          deposit.user,
+          wallet:        wallet._id,
+          type:          'deposit',
+          amount:        deposit.amount,
+          balanceBefore,
+          balanceAfter:  wallet.balance,
+          status:        'completed',
+          performedBy:   'admin:telegram',
+          note:          `TXID: ${deposit.txid}`
+        })
+
+        await telegramService.answerCallbackQuery(
+          callbackQueryId,
+          `✅ تمت الموافقة — رصيد المحفظة: ${wallet.balance} USDT`
+        )
+      } else {
+        deposit.status      = 'rejected'
+        deposit.processedAt = new Date()
+        await deposit.save()
+        await telegramService.answerCallbackQuery(callbackQueryId, '❌ تم رفض طلب الإيداع')
+      }
+
+      return res.json({ ok: true })
+    }
+
+    const Order = require('./models/Order');
 
     const order = await Order.findById(orderId);
     if (!order) {
