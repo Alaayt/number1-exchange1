@@ -852,6 +852,11 @@ function ExchangeForm() {
   const {user}=useAuth()
   const [walletBalance,setWalletBalance]=useState(null)
 
+  // تعبئة الإيميل تلقائياً عند تسجيل الدخول
+  useEffect(()=>{
+    if(user?.email) setEmail(user.email)
+  },[user])
+
   const validateEmail=v=>{
     if(!v) return lang==='ar'?'البريد الإلكتروني مطلوب':'Email is required'
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return lang==='ar'?'صيغة البريد غير صحيحة':'Invalid email format'

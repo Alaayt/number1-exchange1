@@ -188,6 +188,34 @@ app.use((err, req, res, next) => {
 
 // ─── Start ────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Number1 Server running on port ${PORT}`);
+
+  // ── تسجيل Telegram Webhook تلقائياً عند البدء ──
+  if (process.env.BACKEND_URL) {
+    try {
+      const telegramService = require('./services/telegram')
+      const Setting = require('./models/Setting')
+      const s = await Setting.getSingleton()
+      const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
+
+      if (token) {
+        const webhookUrl = `${process.env.BACKEND_URL}/api/telegram/webhook`
+        const axios = require('axios')
+        const res = await axios.post(
+          `https://api.telegram.org/bot${token}/setWebhook`,
+          { url: webhookUrl, drop_pending_updates: false }
+        )
+        if (res.data.ok) {
+          console.log(`✅ Telegram Webhook registered: ${webhookUrl}`)
+        } else {
+          console.warn('⚠️ Telegram Webhook registration failed:', res.data.description)
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Telegram Webhook auto-setup error:', e.message)
+    }
+  } else {
+    console.warn('⚠️ BACKEND_URL not set — Telegram Webhook not auto-registered. Set BACKEND_URL in .env')
+  }
 });

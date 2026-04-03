@@ -479,4 +479,43 @@ router.post('/deposits/:id/reject', async (req, res) => {
   }
 })
 
+// ─── POST /api/admin/telegram/set-webhook ─────
+// تسجيل Telegram Webhook يدوياً (مرة واحدة بعد النشر)
+router.post('/telegram/set-webhook', async (req, res) => {
+  try {
+    const backendUrl = req.body.backendUrl || process.env.BACKEND_URL
+    if (!backendUrl) {
+      return res.status(400).json({ success: false, message: 'أرسل backendUrl في الـ body أو اضبط BACKEND_URL في .env' })
+    }
+    const s = await Setting.getSingleton()
+    const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
+    if (!token) return res.status(400).json({ success: false, message: 'Telegram bot token غير مضبوط' })
+
+    const axios = require('axios')
+    const webhookUrl = `${backendUrl}/api/telegram/webhook`
+    const result = await axios.post(
+      `https://api.telegram.org/bot${token}/setWebhook`,
+      { url: webhookUrl, drop_pending_updates: false }
+    )
+    res.json({ success: result.data.ok, webhookUrl, telegram: result.data })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// ─── GET /api/admin/telegram/webhook-info ─────
+// عرض معلومات الـ Webhook الحالي
+router.get('/telegram/webhook-info', async (req, res) => {
+  try {
+    const s = await Setting.getSingleton()
+    const token = s.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
+    if (!token) return res.status(400).json({ success: false, message: 'Token غير مضبوط' })
+    const axios = require('axios')
+    const result = await axios.get(`https://api.telegram.org/bot${token}/getWebhookInfo`)
+    res.json({ success: true, webhook: result.data.result })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 module.exports = router;
