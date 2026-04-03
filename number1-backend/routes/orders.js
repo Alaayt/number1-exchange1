@@ -139,12 +139,11 @@ router.post('/', optionalProtect, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid email address.' })
     }
 
-    // ── التحقق من رقم الهاتف (إذا وُجد) ──────
+    // ── التحقق من رقم الهاتف (إذا وُجد) — يقبل أرقام دولية ──
     if (payment.senderPhoneNumber) {
-      const phoneRx = /^01[0-2,5]\d{8}$/
-      const cleaned = payment.senderPhoneNumber.replace(/\s/g, '')
-      if (!phoneRx.test(cleaned)) {
-        return res.status(400).json({ success: false, message: 'Invalid Egyptian phone number.' })
+      const phoneRx = /^\+?[0-9\s\-]{7,20}$/
+      if (!phoneRx.test(payment.senderPhoneNumber.trim())) {
+        return res.status(400).json({ success: false, message: 'Invalid phone number.' })
       }
     }
 

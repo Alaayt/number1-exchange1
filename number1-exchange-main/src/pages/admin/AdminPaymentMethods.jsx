@@ -413,6 +413,18 @@ function WalletCard({ item, onToggle, onEdit, onRemove }) {
           />
         </div>
 
+        {/* Account Name */}
+        <div>
+          <Label>اسم الحساب (يظهر للمستخدم)</Label>
+          <input
+            style={s.input}
+            placeholder="مثال: NUMBER 1 EXCHANGE"
+            value={item.accountName || ''}
+            onChange={e => onEdit('accountName', e.target.value)}
+            disabled={!item.enabled}
+          />
+        </div>
+
         {/* Notes (optional) */}
         <div>
           <Label>ملاحظة للمستخدم (اختياري)</Label>

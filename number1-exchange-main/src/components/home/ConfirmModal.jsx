@@ -29,7 +29,11 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
 
   const transferNote = orderData.sendType === 'crypto'
     ? `تأكد من إرسال ${orderData.sendItem?.coin || 'USDT'} على شبكة ${orderData.sendItem?.network || 'TRC20'} فقط`
-    : `حوّل المبلغ من رقمك المسجّل فقط`
+    : orderData.sendItem?.note || 'حوّل المبلغ من رقمك المسجّل فقط'
+
+  const accountName = orderData.sendType !== 'crypto' && orderData.sendItem?.accountName
+    ? orderData.sendItem.accountName
+    : null
 
   const isLargeAddress = orderData.sendType === 'crypto'
 
@@ -263,6 +267,11 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
                       </button>
                     )}
                   </div>
+                  {accountName && (
+                    <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>
+                      حوّل باسم: <strong style={{ color: 'var(--text-2)' }}>{accountName}</strong>
+                    </div>
+                  )}
                   <div style={noteText}>⚠ {transferNote}</div>
                 </div>
 

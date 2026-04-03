@@ -210,8 +210,9 @@ function ExchangeForm() {
   const handleSubmit = () => {
     const amt = parseFloat(sendAmount)
 
-    const emailRx  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-    const phoneRx  = /^01[0-2,5]\d{8}$/
+    const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+    // قبول أرقام دولية: + اختياري، 7-20 رقم وفراغات وشرطات
+    const phoneRx = /^\+?[0-9\s\-]{7,20}$/
 
     if (!email || !emailRx.test(email))
       return alert('يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com)')
@@ -219,8 +220,8 @@ function ExchangeForm() {
     if (sendIsWallet) {
       if (!userPhone)
         return alert(`يرجى إدخال رقم هاتفك على ${sendItem?.name}`)
-      if (!phoneRx.test(userPhone.replace(/\s/g, '')))
-        return alert('رقم الهاتف غير صحيح — يجب أن يكون رقماً مصرياً من 11 رقم (مثال: 01012345678)')
+      if (!phoneRx.test(userPhone.trim()))
+        return alert('رقم الهاتف غير صحيح — أدخل رقمك مع كود الدولة (مثال: 01012345678 أو +966501234567)')
     }
 
     if (!recipientId || recipientId.trim().length < 5)
