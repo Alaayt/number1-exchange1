@@ -569,7 +569,7 @@ function ConfirmModal({isOpen, onClose, orderData}) {
                 style={{width:"100%",padding:13,background:"linear-gradient(135deg,#009fc0,#006e9e)",border:"none",borderRadius:12,fontFamily:"'Tajawal',sans-serif",fontSize:"1.02rem",fontWeight:800,color:"#fff",cursor:loading?"not-allowed":"pointer",transition:"all 0.3s",boxShadow:"0 4px 22px rgba(0,159,192,0.22)",opacity:loading?0.7:1}}
                 onMouseEnter={e=>{if(!loading){e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,210,255,0.35)"}}}
                 onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 22px rgba(0,159,192,0.22)"}}>
-                {loading?t("confirm_btn_loading"):t("confirm_btn_ready")}
+                {loading?t("confirm_loading"):t("confirm_submit")}
               </button>
             </>
           )}
@@ -753,17 +753,18 @@ function ExchangeForm() {
 
   const handleSubmit=()=>{
     if(!email){alert(lang==="ar"?"يرجى إدخال البريد الإلكتروني":"Please enter your email");return}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){alert(lang==="ar"?"البريد الإلكتروني غير صحيح":"Invalid email address");return}
     if(isEgp&&!userPhone){alert(lang==="ar"?`يرجى إدخال رقم هاتفك على ${sendMethod.name}`:`Enter your ${sendMethod.name} phone number`);return}
     if(!recipientId){alert(lang==="ar"?`يرجى إدخال ${recipientLabel}`:`Please enter ${recipientLabel}`);return}
     if(!aml||!tos){alert(lang==="ar"?"يرجى الموافقة على الشروط":"Please agree to the terms");return}
     if(parseFloat(sendAmount)<10){alert(lang==="ar"?"الحد الأدنى 10 وحدة":"Minimum is 10 units");return}
-    // إيجاد وسيلة الدفع من لوحة التحكم
+    // إيجاد وسيلة الدفع من لوحة التحكم بالمطابقة عبر الـ id
     let sendItem = null
     if(sendMethod.type==='crypto'){
       sendItem = adminMethods.cryptos[0] || null
     } else {
-      const n=sendMethod.name.toLowerCase()
-      sendItem = adminMethods.wallets.find(w=>(w.name||'').toLowerCase().includes(n.split(' ')[0])) || null
+      const id = sendMethod.id  // vodafone | instapay | etisalat
+      sendItem = adminMethods.wallets.find(w=>(w.name||'').toLowerCase().includes(id)) || null
     }
     setOrderData({ sendMethod, receiveMethod, sendAmount, receiveAmount, email, userPhone, recipientId, sendItem })
     setModalOpen(true)
