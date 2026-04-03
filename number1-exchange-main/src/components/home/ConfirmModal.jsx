@@ -96,7 +96,6 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
 
   // ── إرسال الطلب النهائي للـ API ───────────
   const handleFinalSubmit = async () => {
-    if (!receipt) { setError('يرجى رفع صورة الإيصال أولاً'); return }
 
     setLoading(true)
     setError('')
@@ -284,7 +283,7 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
 
               {/* ── خطوة 2: رفع الإيصال ─────── */}
               <div>
-                <StepHeader n={2} text="ارفع صورة الإيصال" />
+                <StepHeader n={2} text="ارفع صورة الإيصال (اختياري)" />
                 <div
                   onClick={() => fileRef.current.click()}
                   style={{
@@ -321,24 +320,23 @@ function ConfirmModal({ isOpen, onClose, orderData }) {
               {/* ── زر الإرسال النهائي ──────── */}
               <button
                 onClick={handleFinalSubmit}
-                disabled={loading || !receipt}
+                disabled={loading}
                 style={{
                   width: '100%', padding: 13,
-                  background: !receipt
-                    ? 'rgba(0,159,192,0.4)'
-                    : 'linear-gradient(135deg,#009fc0,#006e9e)',
+                  background: 'linear-gradient(135deg,#009fc0,#006e9e)',
                   border: 'none', borderRadius: 12,
                   fontFamily: "'Tajawal',sans-serif",
                   fontSize: '1.02rem', fontWeight: 800,
                   color: '#fff',
-                  cursor: !receipt || loading ? 'not-allowed' : 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.3s',
-                  boxShadow: receipt ? '0 4px 22px rgba(0,159,192,0.22)' : 'none',
+                  boxShadow: '0 4px 22px rgba(0,159,192,0.22)',
+                  opacity: loading ? 0.7 : 1,
                 }}
-                onMouseEnter={e => { if (receipt && !loading) e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseEnter={e => { if (!loading) e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                {loading ? '⏳ جاري الإرسال...' : !receipt ? '↑ ارفع الإيصال أولاً' : 'إرسال الطلب نهائياً ✓'}
+                {loading ? '⏳ جاري الإرسال...' : 'إرسال الطلب ✓'}
               </button>
             </>
           )}

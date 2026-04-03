@@ -61,8 +61,9 @@ exports.notifyNewOrder = async (order) => {
     ? rate.toFixed(4).replace(/\.?0+$/, '')       // e.g. 37.74
     : rate.toPrecision(4).replace(/\.?0+$/, '')   // e.g. 0.02650
 
-  // MoneyGo recipient label — it's the destination ID, not a phone per se
-  const recipientLabel = isUSDT ? '🔑 عنوان الاستلام' : '🎯 معرّف MoneyGo'
+  // عندما يرسل المستخدم USDT → يستلم MoneyGo (الحقل = معرّف MoneyGo)
+  // عندما يرسل EGP محفظة  → يستلم USDT   (الحقل = عنوان محفظة USDT)
+  const recipientLabel = isUSDT ? '🎯 معرّف MoneyGo للاستلام' : '🔑 عنوان USDT للاستلام'
 
   const text = `
 🆕 <b>طلب جديد — Number1</b>
