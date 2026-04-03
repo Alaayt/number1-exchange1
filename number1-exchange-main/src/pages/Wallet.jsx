@@ -254,8 +254,26 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
                         </div>
                       </div>
                       {method.type === 'crypto' && (
-                        <div style={{ padding: '8px 12px', background: 'rgba(248,81,73,0.06)', border: '1px dashed rgba(248,81,73,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#f85149' }}>
-                          🚨 أرسل على شبكة {method.network} فقط — شبكة مختلفة = خسارة الأموال
+                        <div style={{ background: 'rgba(248,81,73,0.07)', border: '1px solid rgba(248,81,73,0.3)', borderRadius: 12, overflow: 'hidden' }}>
+                          {/* Warning header */}
+                          <div style={{ padding: '10px 14px', background: 'rgba(248,81,73,0.12)', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(248,81,73,0.2)' }}>
+                            <span style={{ fontSize: '1rem' }}>🚨</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f85149', fontFamily: "'Tajawal',sans-serif" }}>تحذير مهم — اقرأ قبل الإرسال</span>
+                          </div>
+                          {/* Warning points */}
+                          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                            {[
+                              `أرسل على شبكة ${method.network} فقط — أي شبكة أخرى ستؤدي لخسارة أموالك`,
+                              'تأكد من نسخ العنوان كاملاً دون أي تعديل',
+                              'لا ترسل إلا العملة المحددة أعلاه',
+                              'احتفظ برقم المعاملة (TXID) بعد الإرسال لإدخاله في الخطوة التالية',
+                            ].map((txt, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                <span style={{ color: '#f85149', fontWeight: 900, flexShrink: 0, marginTop: 1, fontSize: '0.8rem' }}>✕</span>
+                                <span style={{ fontSize: '0.75rem', color: '#e2a0a0', fontFamily: "'Tajawal',sans-serif", lineHeight: 1.5 }}>{txt}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                       {method.note && (

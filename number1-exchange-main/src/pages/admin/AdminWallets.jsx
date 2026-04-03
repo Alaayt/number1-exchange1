@@ -2,12 +2,37 @@
 // src/pages/admin/AdminWallets.jsx
 // إدارة المحافظ + طلبات الإيداع — مدمجة في صفحة واحدة
 // ============================================
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import AdminLayout from '../../components/admin/AdminLayout'
 import { walletAPI, adminAPI } from '../../services/api'
 
 const API      = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const getToken = () => localStorage.getItem('n1_token')
+
+// ── Deposit Networks helpers ──────────────────────────────────
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
+
+const CRYPTO_PRESETS = [
+  { coin:'USDT', network:'TRC20',   label:'USDT TRC20',  icon:'₮', color:'#26a17b' },
+  { coin:'USDT', network:'BEP20',   label:'USDT BEP20',  icon:'₮', color:'#f0b90b' },
+  { coin:'USDT', network:'ERC20',   label:'USDT ERC20',  icon:'₮', color:'#627eea' },
+  { coin:'BNB',  network:'BEP20',   label:'BNB BEP20',   icon:'◆', color:'#f0b90b' },
+  { coin:'BTC',  network:'Bitcoin', label:'Bitcoin',     icon:'₿', color:'#f7931a' },
+  { coin:'ETH',  network:'ERC20',   label:'ETH ERC20',   icon:'Ξ', color:'#627eea' },
+  { coin:'TRX',  network:'TRC20',   label:'TRX TRC20',   icon:'◈', color:'#ff060a' },
+  { coin:'USDC', network:'ERC20',   label:'USDC ERC20',  icon:'$', color:'#2775ca' },
+]
+
+const newNet = (s = {}) => ({
+  id: uid(),
+  coin:    s.coin    || 'USDT',
+  network: s.network || 'TRC20',
+  label:   s.label   || `${s.coin || 'USDT'} ${s.network || 'TRC20'}`,
+  icon:    s.icon    || '₮',
+  color:   s.color   || '#26a17b',
+  address: '',
+  enabled: true,
+})
 
 // ═══════════════════════════════════════════════
 // StatusBadge — بادج الحالة
@@ -389,6 +414,120 @@ function Toast({ message, onClose }) {
 }
 
 // ═══════════════════════════════════════════════
+// NetEditModal — إضافة / تعديل شبكة إيداع
+// ═══════════════════════════════════════════════
+function NetEditModal({ net, onSave, onClose }) {
+  const [form, setForm] = useState({ ...net })
+
+  const set = (field, val) => setForm(p => ({ ...p, [field]: val }))
+
+  const COLOR_OPTS = ['#26a17b','#f0b90b','#627eea','#f7931a','#ff060a','#2775ca','#00d4ff','#7c3aed']
+
+  return (
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', backdropFilter:'blur(8px)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+      <div style={{ background:'#161b22', border:'1px solid #30363d', borderRadius:22, width:'100%', maxWidth:480, position:'relative', overflow:'hidden' }}>
+        {/* Glow bar */}
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${form.color},transparent)` }} />
+
+        {/* Header */}
+        <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid #21262d', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:10, background:`${form.color}18`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', fontWeight:900, color:form.color }}>
+              {form.icon}
+            </div>
+            <span style={{ fontWeight:800, fontSize:'0.95rem', color:'#e6edf3', fontFamily:"'Tajawal',sans-serif" }}>
+              {net.address ? 'تعديل شبكة الإيداع' : 'إضافة شبكة إيداع جديدة'}
+            </span>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'#6e7681', cursor:'pointer', fontSize:18 }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding:'20px 22px', display:'flex', flexDirection:'column', gap:14 }}>
+
+          {/* Label + Icon row */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10 }}>
+            <div>
+              <label style={{ display:'block', fontSize:'0.7rem', color:'#6e7681', fontFamily:"'JetBrains Mono',monospace", marginBottom:6, letterSpacing:1 }}>اسم الشبكة (يظهر للمستخدم)</label>
+              <input value={form.label} onChange={e => set('label', e.target.value)}
+                placeholder="مثال: USDT TRC20"
+                style={{ width:'100%', padding:'10px 12px', background:'rgba(255,255,255,0.04)', border:`1px solid ${form.color}40`, borderRadius:10, color:'#e6edf3', fontFamily:"'Tajawal',sans-serif", fontSize:'0.88rem', outline:'none', boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize:'0.7rem', color:'#6e7681', fontFamily:"'JetBrains Mono',monospace", marginBottom:6, letterSpacing:1 }}>رمز</label>
+              <input value={form.icon} onChange={e => set('icon', e.target.value)} maxLength={2}
+                style={{ width:52, padding:'10px 0', background:'rgba(255,255,255,0.04)', border:`1px solid ${form.color}40`, borderRadius:10, color:form.color, fontSize:'1.2rem', textAlign:'center', outline:'none' }} />
+            </div>
+          </div>
+
+          {/* Coin + Network */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div>
+              <label style={{ display:'block', fontSize:'0.7rem', color:'#6e7681', fontFamily:"'JetBrains Mono',monospace", marginBottom:6, letterSpacing:1 }}>العملة</label>
+              <input value={form.coin} onChange={e => set('coin', e.target.value)}
+                placeholder="USDT"
+                style={{ width:'100%', padding:'10px 12px', background:'rgba(255,255,255,0.04)', border:'1px solid #21262d', borderRadius:10, color:'#e6edf3', fontFamily:"'JetBrains Mono',monospace", fontSize:'0.88rem', outline:'none', boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize:'0.7rem', color:'#6e7681', fontFamily:"'JetBrains Mono',monospace", marginBottom:6, letterSpacing:1 }}>الشبكة</label>
+              <input value={form.network} onChange={e => set('network', e.target.value)}
+                placeholder="TRC20"
+                style={{ width:'100%', padding:'10px 12px', background:'rgba(255,255,255,0.04)', border:'1px solid #21262d', borderRadius:10, color:'#e6edf3', fontFamily:"'JetBrains Mono',monospace", fontSize:'0.88rem', outline:'none', boxSizing:'border-box' }} />
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <label style={{ display:'block', fontSize:'0.7rem', color:'#6e7681', fontFamily:"'JetBrains Mono',monospace", marginBottom:6, letterSpacing:1 }}>عنوان المحفظة (Address)</label>
+            <input value={form.address} onChange={e => set('address', e.target.value)}
+              placeholder="أدخل عنوان المحفظة كاملاً..."
+              style={{ width:'100%', padding:'10px 12px', background:'rgba(0,0,0,0.3)', border:`1px solid ${form.address ? form.color+'40' : '#21262d'}`, borderRadius:10, color:form.color, fontFamily:"'JetBrains Mono',monospace", fontSize:'0.75rem', outline:'none', boxSizing:'border-box', direction:'ltr', letterSpacing:0.5 }} />
+            {!form.address && (
+              <div style={{ marginTop:5, fontSize:'0.65rem', color:'#f59e0b', fontFamily:"'Tajawal',sans-serif" }}>
+                ⚠️ العنوان مطلوب لتفعيل هذه الشبكة
+              </div>
+            )}
+          </div>
+
+          {/* Color */}
+          <div>
+            <label style={{ display:'block', fontSize:'0.7rem', color:'#6e7681', fontFamily:"'JetBrains Mono',monospace", marginBottom:8, letterSpacing:1 }}>اللون</label>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {COLOR_OPTS.map(c => (
+                <button key={c} onClick={() => set('color', c)}
+                  style={{ width:28, height:28, borderRadius:'50%', background:c, border: form.color===c ? '3px solid #fff' : '2px solid transparent', cursor:'pointer', transition:'all 0.15s' }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Enabled toggle */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'rgba(255,255,255,0.02)', borderRadius:10, border:'1px solid #21262d' }}>
+            <span style={{ fontSize:'0.85rem', color:'#c9d1d9', fontFamily:"'Tajawal',sans-serif" }}>تفعيل هذه الشبكة</span>
+            <button onClick={() => set('enabled', !form.enabled)}
+              style={{ width:42, height:22, borderRadius:11, border:'none', cursor:'pointer', position:'relative', background: form.enabled ? form.color : '#21262d', transition:'all 0.25s' }}>
+              <div style={{ position:'absolute', top:2, left: form.enabled ? 22 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.25s', boxShadow:'0 1px 4px rgba(0,0,0,0.4)' }} />
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display:'flex', gap:10, marginTop:4 }}>
+            <button onClick={onClose}
+              style={{ flex:1, padding:11, background:'none', border:'1px solid #21262d', borderRadius:10, color:'#6e7681', fontFamily:"'Tajawal',sans-serif", cursor:'pointer', fontSize:'0.88rem' }}>
+              إلغاء
+            </button>
+            <button onClick={() => onSave(form)} disabled={!form.label || !form.address}
+              style={{ flex:2, padding:11, background: form.label && form.address ? `linear-gradient(135deg,${form.color},${form.color}bb)` : '#21262d', border:'none', borderRadius:10, color: form.label && form.address ? '#fff' : '#484f58', fontFamily:"'Tajawal',sans-serif", fontWeight:800, cursor: form.label && form.address ? 'pointer' : 'not-allowed', fontSize:'0.88rem', transition:'all 0.2s' }}>
+              {net.address ? '✓ حفظ التعديلات' : '+ إضافة الشبكة'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════
 // MAIN: AdminWallets — الصفحة الرئيسية المدمجة
 // ═══════════════════════════════════════════════
 export default function AdminWallets() {
@@ -410,6 +549,15 @@ export default function AdminWallets() {
 
   // Toast
   const [toast, setToast] = useState('')
+
+  // Deposit Networks state
+  const [depositNets,  setDepositNets]  = useState([])
+  const [netsLoad,     setNetsLoad]     = useState(false)
+  const [netsSaving,   setNetsSaving]   = useState(false)
+  const [netsSaved,    setNetsSaved]    = useState(false)
+  const [editNet,      setEditNet]      = useState(null)   // net being edited in modal
+  const [showPresets,  setShowPresets]  = useState(false)
+  const existingWalletsRef = useRef([])
 
   // ─── Fetch Wallets ──────────────────────────
   const fetchWallets = useCallback(async () => {
@@ -452,8 +600,40 @@ export default function AdminWallets() {
     } catch {}
   }, [])
 
+  // ─── Deposit Networks ────────────────────────
+  const fetchDepositNets = async () => {
+    setNetsLoad(true)
+    try {
+      const { data } = await adminAPI.getPaymentMethods()
+      setDepositNets(data.cryptos || [])
+      existingWalletsRef.current = data.wallets || []
+    } catch { setDepositNets([]) }
+    finally { setNetsLoad(false) }
+  }
+
+  const saveDepositNets = async () => {
+    setNetsSaving(true)
+    try {
+      await adminAPI.savePaymentMethods({
+        cryptos: depositNets,
+        wallets: existingWalletsRef.current,
+      })
+      setNetsSaved(true)
+      setToast('✅ تم حفظ عناوين الإيداع بنجاح')
+      setTimeout(() => setNetsSaved(false), 3000)
+    } catch {
+      setToast('❌ فشل حفظ العناوين، تحقق من الاتصال')
+    } finally { setNetsSaving(false) }
+  }
+
+  const updateNet  = (id, field, val) => setDepositNets(p => p.map(n => n.id === id ? { ...n, [field]: val } : n))
+  const removeNet  = (id) => setDepositNets(p => p.filter(n => n.id !== id))
+  const toggleNet  = (id) => updateNet(id, 'enabled', !depositNets.find(n => n.id === id)?.enabled)
+  const addNet     = (preset = {}) => { setDepositNets(p => [...p, newNet(preset)]); setShowPresets(false) }
+  const saveNetEdit = (updated) => { setDepositNets(p => p.map(n => n.id === updated.id ? updated : n)); setEditNet(null) }
+
   // ─── Init ───────────────────────────────────
-  useEffect(() => { fetchWallets(); fetchDeposits(); fetchDepositStats() }, [])
+  useEffect(() => { fetchWallets(); fetchDeposits(); fetchDepositStats(); fetchDepositNets() }, [])
   useEffect(() => { fetchDeposits(depositFilter) }, [depositFilter])
 
   // ─── Deposit actions ────────────────────────
@@ -502,8 +682,9 @@ export default function AdminWallets() {
   ]
 
   const TABS = [
-    { id: 'wallets',  label: 'المحافظ',       icon: '💰', count: wallets.length },
-    { id: 'deposits', label: 'طلبات الإيداع',  icon: '📥', count: depositStats.pending },
+    { id: 'wallets',   label: 'المحافظ',          icon: '💰', count: wallets.length },
+    { id: 'deposits',  label: 'طلبات الإيداع',    icon: '📥', count: depositStats.pending },
+    { id: 'addresses', label: 'عناوين الإيداع',   icon: '🔗', count: depositNets.filter(n => n.enabled && n.address).length },
   ]
 
   return (
@@ -781,6 +962,154 @@ export default function AdminWallets() {
         </div>
       )}
 
+      {/* ═════════════════════════════════════════ */}
+      {/* TAB 3: عناوين الإيداع                     */}
+      {/* ═════════════════════════════════════════ */}
+      {activeTab === 'addresses' && (
+        <div>
+          {/* Header */}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, flexWrap:'wrap', gap:12 }}>
+            <div>
+              <h3 style={{ margin:'0 0 4px', fontSize:'1rem', fontWeight:800, color:'#e6edf3', fontFamily:"'Tajawal',sans-serif" }}>
+                🔗 عناوين استلام الإيداع
+              </h3>
+              <p style={{ margin:0, fontSize:'0.78rem', color:'#6e7681', fontFamily:"'Tajawal',sans-serif" }}>
+                هذه الشبكات ستظهر للمستخدم عند ضغطه على "إيداع" في محفظته
+              </p>
+            </div>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              {/* Add button */}
+              <div style={{ position:'relative' }}>
+                <button onClick={() => setShowPresets(v => !v)}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 16px', background:'rgba(0,212,255,0.08)', border:'1px solid rgba(0,212,255,0.25)', borderRadius:10, color:'#00d4ff', fontFamily:"'Tajawal',sans-serif", fontWeight:700, fontSize:'0.85rem', cursor:'pointer', transition:'all 0.2s' }}>
+                  + إضافة شبكة
+                </button>
+                {showPresets && (
+                  <>
+                    <div onClick={() => setShowPresets(false)} style={{ position:'fixed', inset:0, zIndex:50 }} />
+                    <div style={{ position:'absolute', top:'calc(100% + 6px)', right:0, zIndex:51, background:'#1c2333', border:'1px solid #30363d', borderRadius:14, overflow:'hidden', minWidth:200, boxShadow:'0 16px 48px rgba(0,0,0,0.5)' }}>
+                      {CRYPTO_PRESETS.map(p => (
+                        <button key={p.label} onClick={() => { addNet(p); setEditNet(newNet(p)) }}
+                          style={{ width:'100%', padding:'10px 14px', background:'none', border:'none', borderBottom:'1px solid #21262d', color:'#c9d1d9', cursor:'pointer', display:'flex', alignItems:'center', gap:10, textAlign:'right', transition:'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.04)'}
+                          onMouseLeave={e => e.currentTarget.style.background='none'}>
+                          <span style={{ fontSize:'1rem', color:p.color, fontWeight:900 }}>{p.icon}</span>
+                          <div>
+                            <div style={{ fontSize:'0.85rem', fontWeight:700, fontFamily:"'Tajawal',sans-serif" }}>{p.label}</div>
+                            <div style={{ fontSize:'0.65rem', color:'#484f58', fontFamily:"'JetBrains Mono',monospace" }}>{p.network}</div>
+                          </div>
+                        </button>
+                      ))}
+                      <button onClick={() => { addNet(); setShowPresets(false) }}
+                        style={{ width:'100%', padding:'10px 14px', background:'none', border:'none', color:'#6e7681', cursor:'pointer', display:'flex', alignItems:'center', gap:8, fontFamily:"'Tajawal',sans-serif", fontSize:'0.82rem', transition:'background 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.04)'}
+                        onMouseLeave={e => e.currentTarget.style.background='none'}>
+                        ✚ شبكة مخصصة
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Save button */}
+              <button onClick={saveDepositNets} disabled={netsSaving}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 20px', background: netsSaved ? '#064e3b' : 'linear-gradient(135deg,#2563eb,#1d4ed8)', border:'none', borderRadius:10, color:'#fff', fontFamily:"'Tajawal',sans-serif", fontWeight:700, fontSize:'0.85rem', cursor: netsSaving ? 'not-allowed' : 'pointer', opacity: netsSaving ? 0.7 : 1, transition:'all 0.2s' }}>
+                {netsSaving ? '⏳ جاري الحفظ...' : netsSaved ? '✓ تم الحفظ' : '💾 حفظ التغييرات'}
+              </button>
+            </div>
+          </div>
+
+          {/* Info banner */}
+          <div style={{ padding:'12px 16px', background:'rgba(0,212,255,0.04)', border:'1px solid rgba(0,212,255,0.15)', borderRadius:12, marginBottom:20, display:'flex', alignItems:'flex-start', gap:10 }}>
+            <span style={{ fontSize:'1rem', flexShrink:0 }}>💡</span>
+            <div style={{ fontSize:'0.8rem', color:'#8b949e', fontFamily:"'Tajawal',sans-serif", lineHeight:1.7 }}>
+              <strong style={{ color:'#00d4ff' }}>كيف يعمل:</strong> الشبكات المفعّلة ستظهر للمستخدم في نافذة الإيداع — سيختار الشبكة ثم يرسل على العنوان ويدخل رقم المعاملة (TXID) للمراجعة.
+            </div>
+          </div>
+
+          {/* Loading */}
+          {netsLoad ? (
+            <div style={{ padding:'60px 0', textAlign:'center', color:'#6e7681' }}>
+              <div style={{ width:32, height:32, border:'3px solid #21262d', borderTopColor:'#00d4ff', borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }} />
+              جاري التحميل...
+            </div>
+          ) : depositNets.length === 0 ? (
+            <div style={{ padding:'60px 20px', textAlign:'center', background:'#161b22', border:'1px dashed #30363d', borderRadius:16 }}>
+              <div style={{ fontSize:'3rem', marginBottom:12 }}>🔗</div>
+              <div style={{ color:'#6e7681', fontFamily:"'Tajawal',sans-serif", fontSize:'0.9rem', marginBottom:6 }}>لا توجد شبكات إيداع بعد</div>
+              <div style={{ color:'#484f58', fontSize:'0.78rem' }}>اضغط "+ إضافة شبكة" لإضافة أول عنوان استلام</div>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {depositNets.map((net, i) => (
+                <div key={net.id || i} style={{ background:'#161b22', border:`1px solid ${net.enabled && net.address ? net.color+'30' : '#21262d'}`, borderRadius:14, overflow:'hidden', transition:'all 0.2s' }}>
+                  {/* Top color bar */}
+                  {net.enabled && net.address && (
+                    <div style={{ height:2, background:`linear-gradient(90deg,${net.color},transparent)` }} />
+                  )}
+                  <div style={{ padding:'14px 18px', display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
+                    {/* Icon */}
+                    <div style={{ width:44, height:44, borderRadius:12, background:`${net.color}15`, border:`1px solid ${net.color}25`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', fontWeight:900, color:net.color, flexShrink:0 }}>
+                      {net.icon}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                        <span style={{ fontSize:'0.92rem', fontWeight:800, color:'#e6edf3', fontFamily:"'Tajawal',sans-serif" }}>{net.label}</span>
+                        <span style={{ fontSize:'0.65rem', fontWeight:700, padding:'2px 8px', borderRadius:20, background:`${net.color}15`, color:net.color, border:`1px solid ${net.color}25`, fontFamily:"'JetBrains Mono',monospace" }}>{net.network}</span>
+                        {/* Status badge */}
+                        <span style={{ fontSize:'0.65rem', fontWeight:700, padding:'2px 8px', borderRadius:20, background: net.enabled && net.address ? 'rgba(0,229,160,0.1)' : 'rgba(248,81,73,0.08)', color: net.enabled && net.address ? '#00e5a0' : '#f85149', border:`1px solid ${net.enabled && net.address ? '#00e5a060' : '#f8514950'}` }}>
+                          {net.enabled && net.address ? '● نشطة' : !net.address ? '⚠ بدون عنوان' : '○ معطلة'}
+                        </span>
+                      </div>
+                      {/* Address */}
+                      {net.address ? (
+                        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:'0.72rem', color:'#6e7681', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:320, direction:'ltr' }}>
+                          {net.address}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize:'0.72rem', color:'#f59e0b', fontFamily:"'Tajawal',sans-serif" }}>
+                          ⚠️ يجب إضافة العنوان لتفعيل هذه الشبكة
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      {/* Toggle */}
+                      <button onClick={() => toggleNet(net.id)} title={net.enabled ? 'تعطيل' : 'تفعيل'}
+                        style={{ width:42, height:22, borderRadius:11, border:'none', cursor:'pointer', position:'relative', background: net.enabled ? net.color : '#21262d', transition:'all 0.25s' }}>
+                        <div style={{ position:'absolute', top:2, left: net.enabled ? 22 : 2, width:18, height:18, borderRadius:'50%', background:'#fff', transition:'left 0.25s', boxShadow:'0 1px 4px rgba(0,0,0,0.4)' }} />
+                      </button>
+                      {/* Edit */}
+                      <button onClick={() => setEditNet(net)} title="تعديل"
+                        style={{ padding:'6px 12px', background:'rgba(0,212,255,0.08)', border:'1px solid rgba(0,212,255,0.2)', borderRadius:8, color:'#00d4ff', cursor:'pointer', fontSize:'0.78rem', fontFamily:"'Tajawal',sans-serif", fontWeight:700, transition:'all 0.15s' }}>
+                        ✎ تعديل
+                      </button>
+                      {/* Delete */}
+                      <button onClick={() => { if (confirm('حذف هذه الشبكة؟')) removeNet(net.id) }} title="حذف"
+                        style={{ padding:'6px 10px', background:'rgba(248,81,73,0.06)', border:'1px solid rgba(248,81,73,0.2)', borderRadius:8, color:'#f85149', cursor:'pointer', fontSize:'0.78rem', transition:'all 0.15s' }}>
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bottom save reminder */}
+          {depositNets.length > 0 && (
+            <div style={{ marginTop:20, display:'flex', justifyContent:'flex-end' }}>
+              <button onClick={saveDepositNets} disabled={netsSaving}
+                style={{ padding:'11px 28px', background: netsSaved ? '#064e3b' : 'linear-gradient(135deg,#2563eb,#1d4ed8)', border:'none', borderRadius:12, color:'#fff', fontFamily:"'Tajawal',sans-serif", fontWeight:800, fontSize:'0.92rem', cursor: netsSaving ? 'not-allowed' : 'pointer', opacity: netsSaving ? 0.7 : 1 }}>
+                {netsSaving ? '⏳ جاري الحفظ...' : netsSaved ? '✓ تم الحفظ' : '💾 حفظ جميع التغييرات'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ══ Modals ══ */}
       {walletModal && (
         <WalletActionModal
@@ -797,6 +1126,14 @@ export default function AdminWallets() {
           onClose={() => setSelectedDeposit(null)}
           onApprove={handleApproveDeposit}
           onReject={handleRejectDeposit}
+        />
+      )}
+
+      {editNet && (
+        <NetEditModal
+          net={editNet}
+          onSave={saveNetEdit}
+          onClose={() => setEditNet(null)}
         />
       )}
 

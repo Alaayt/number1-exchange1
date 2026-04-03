@@ -60,7 +60,7 @@ export default function AdminRates() {
   const fetchRates = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("n1_token");
       const res   = await fetch(`${API}/api/admin/rates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -83,7 +83,7 @@ export default function AdminRates() {
     setSaving(true);
     setError("");
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("n1_token");
       const res   = await fetch(`${API}/api/admin/rates`, {
         method:  "PUT",
         headers: {

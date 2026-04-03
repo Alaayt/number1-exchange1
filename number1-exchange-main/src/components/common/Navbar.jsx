@@ -261,7 +261,7 @@ function UserMenu({ user, onLogout, isAr, onNavigate }) {
             {/* طلباتي — للمستخدم العادي فقط */}
             {!isAdmin && (
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => { onNavigate('/my-orders'); setOpen(false) }}
                 style={{
                   width: '100%', padding: '10px 14px',
                   background: 'transparent', border: 'none',
