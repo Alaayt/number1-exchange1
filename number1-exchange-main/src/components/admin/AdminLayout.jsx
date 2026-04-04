@@ -25,7 +25,6 @@ export default function AdminLayout({ children, title }) {
   const navigate  = useNavigate()
   const { user, logout } = useAuth()
 
-  // Close mobile drawer on route change
   useEffect(() => { setMobileOpen(false) }, [location.pathname])
 
   const isActive = (item) =>
@@ -39,14 +38,13 @@ export default function AdminLayout({ children, title }) {
 
   const SidebarContent = ({ isMobile = false }) => (
     <>
-      {/* Logo — on mobile includes the close (X) button */}
       <div className="al-logo-wrap" style={isMobile ? { justifyContent: 'space-between' } : {}}>
         {(!collapsed || isMobile) ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
             <div className="al-logo-icon">N1</div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#f1f5f9', letterSpacing: 0.3 }}>Number 1</div>
-              <div style={{ fontSize: 9, color: '#3b5ea6', letterSpacing: 2.5, textTransform: 'uppercase', marginTop: 1, fontFamily: "'JetBrains Mono',monospace" }}>ADMIN PANEL</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--al-text-primary)', letterSpacing: 0.3 }}>Number 1</div>
+              <div style={{ fontSize: 9, color: 'var(--al-accent-muted)', letterSpacing: 2.5, textTransform: 'uppercase', marginTop: 1, fontFamily: "'JetBrains Mono',monospace" }}>ADMIN PANEL</div>
             </div>
           </div>
         ) : (
@@ -59,7 +57,6 @@ export default function AdminLayout({ children, title }) {
         )}
       </div>
 
-      {/* Nav */}
       <nav className="al-nav">
         {(!collapsed || isMobile) && <div className="al-section-label">القائمة الرئيسية</div>}
         {NAV.slice(0, 4).map(item => {
@@ -83,7 +80,7 @@ export default function AdminLayout({ children, title }) {
         {(!collapsed || isMobile) && (
           <>
             <div className="al-section-label" style={{ marginTop: 4 }}>الإدارة</div>
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 4px 6px' }} />
+            <div style={{ height: 1, background: 'var(--al-divider)', margin: '0 4px 6px' }} />
           </>
         )}
 
@@ -106,7 +103,6 @@ export default function AdminLayout({ children, title }) {
         })}
       </nav>
 
-      {/* Bottom */}
       <div className="al-sidebar-bottom">
         {(!collapsed || isMobile) && (
           <div className="al-user-card">
@@ -114,17 +110,16 @@ export default function AdminLayout({ children, title }) {
               {user?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--al-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.name?.split(' ')[0] || 'Admin'}
               </div>
-              <div style={{ fontSize: 10, color: '#475569', marginTop: 2, fontFamily: "'JetBrains Mono',monospace", letterSpacing: 0.5 }}>ADMINISTRATOR</div>
+              <div style={{ fontSize: 10, color: 'var(--al-text-muted)', marginTop: 2, fontFamily: "'JetBrains Mono',monospace", letterSpacing: 0.5 }}>ADMINISTRATOR</div>
             </div>
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px rgba(34,197,94,0.6)', flexShrink: 0 }} />
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 6, padding: collapsed && !isMobile ? '0 10px' : '0 12px', marginBottom: 14 }}>
-          {/* Collapse toggle — desktop only */}
           <button className="al-icon-btn al-collapse-btn" onClick={() => setCollapsed(v => !v)} title={collapsed ? 'توسيع' : 'طي'}>
             {collapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
@@ -149,25 +144,89 @@ export default function AdminLayout({ children, title }) {
 
         *, *::before, *::after { box-sizing: border-box; }
 
+        /* ── Admin CSS Variables ── */
+        :root {
+          --al-sidebar-bg:    #0d1526;
+          --al-header-bg:     #0d1526;
+          --al-content-bg:    #080e1a;
+          --al-sidebar-border: rgba(59,130,246,0.1);
+          --al-divider:       rgba(255,255,255,0.04);
+          --al-text-primary:  #e2e8f0;
+          --al-text-secondary:#94a3b8;
+          --al-text-muted:    #475569;
+          --al-text-faint:    #334155;
+          --al-accent-muted:  #3b5ea6;
+          --al-row-bg:        rgba(255,255,255,0.02);
+          --al-row-bg-hover:  rgba(255,255,255,0.05);
+          --al-border:        rgba(255,255,255,0.06);
+          --al-border-md:     rgba(255,255,255,0.07);
+          --al-nav-hover:     rgba(59,130,246,0.07);
+          --al-nav-active:    rgba(37,99,235,0.12);
+          --al-nav-active-border: rgba(59,130,246,0.15);
+          --al-nav-active-color: #60a5fa;
+          --al-breadcrumb-1:  #334155;
+          --al-breadcrumb-2:  #1e3a5f;
+          --al-breadcrumb-3:  #3b82f6;
+          --al-badge-bg:      rgba(37,99,235,0.08);
+          --al-badge-border:  rgba(59,130,246,0.15);
+          --al-badge-color:   #60a5fa;
+          --al-back-btn-color:#64748b;
+          --al-back-btn-bg:   rgba(255,255,255,0.02);
+          --al-back-btn-border:rgba(255,255,255,0.07);
+          --al-scrollbar:     rgba(59,130,246,0.15);
+        }
+
+        /* ── Light Mode Overrides ── */
+        html.light {
+          --al-sidebar-bg:    #ffffff;
+          --al-header-bg:     #f8fafc;
+          --al-content-bg:    #eef0f4;
+          --al-sidebar-border: rgba(0,0,0,0.08);
+          --al-divider:       rgba(0,0,0,0.06);
+          --al-text-primary:  #0f172a;
+          --al-text-secondary:#475569;
+          --al-text-muted:    #64748b;
+          --al-text-faint:    #94a3b8;
+          --al-accent-muted:  #2563eb;
+          --al-row-bg:        rgba(0,0,0,0.02);
+          --al-row-bg-hover:  rgba(0,0,0,0.04);
+          --al-border:        rgba(0,0,0,0.07);
+          --al-border-md:     rgba(0,0,0,0.09);
+          --al-nav-hover:     rgba(37,99,235,0.06);
+          --al-nav-active:    rgba(37,99,235,0.09);
+          --al-nav-active-border: rgba(37,99,235,0.2);
+          --al-nav-active-color: #1d4ed8;
+          --al-breadcrumb-1:  #94a3b8;
+          --al-breadcrumb-2:  #cbd5e1;
+          --al-breadcrumb-3:  #2563eb;
+          --al-badge-bg:      rgba(37,99,235,0.07);
+          --al-badge-border:  rgba(37,99,235,0.2);
+          --al-badge-color:   #1d4ed8;
+          --al-back-btn-color:#64748b;
+          --al-back-btn-bg:   rgba(0,0,0,0.03);
+          --al-back-btn-border:rgba(0,0,0,0.09);
+          --al-scrollbar:     rgba(37,99,235,0.15);
+        }
+
         .al-root {
           display: flex; height: 100vh; overflow: hidden;
-          background: #080e1a; color: #cbd5e1;
+          background: var(--al-content-bg); color: var(--al-text-secondary);
           font-family: 'Cairo','Tajawal',sans-serif; direction: rtl;
         }
 
         /* ── Sidebar ── */
         .al-sidebar {
-          background: linear-gradient(180deg, #0d1526 0%, #0a1020 100%);
-          border-left: 1px solid rgba(59,130,246,0.1);
+          background: var(--al-sidebar-bg);
+          border-left: 1px solid var(--al-sidebar-border);
           display: flex; flex-direction: column;
           transition: width 0.28s cubic-bezier(0.4,0,0.2,1);
           flex-shrink: 0; overflow: hidden; position: relative; z-index: 20;
-          box-shadow: -4px 0 24px rgba(0,0,0,0.4);
+          box-shadow: -4px 0 24px rgba(0,0,0,0.15);
         }
         .al-logo-wrap {
-          padding: 18px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
+          padding: 18px 14px; border-bottom: 1px solid var(--al-divider);
           min-height: 70px; display: flex; align-items: center;
-          background: rgba(59,130,246,0.03);
+          background: var(--al-row-bg);
         }
         .al-logo-icon {
           width: 36px; height: 36px; border-radius: 10px;
@@ -182,26 +241,26 @@ export default function AdminLayout({ children, title }) {
         .al-nav { flex: 1; padding: 10px 8px; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; overflow-x: hidden; }
         .al-nav::-webkit-scrollbar { width: 3px; }
         .al-nav::-webkit-scrollbar-track { background: transparent; }
-        .al-nav::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.2); border-radius: 3px; }
+        .al-nav::-webkit-scrollbar-thumb { background: var(--al-scrollbar); border-radius: 3px; }
 
         .al-section-label {
           font-size: 9.5px; font-weight: 700; letter-spacing: 1.8px;
-          text-transform: uppercase; color: #334155;
+          text-transform: uppercase; color: var(--al-text-faint);
           padding: 14px 12px 5px;
           font-family: 'JetBrains Mono', monospace;
         }
         .al-nav-item {
           display: flex; align-items: center; gap: 11px;
           padding: 10px 11px; border-radius: 9px;
-          text-decoration: none; color: #64748b;
+          text-decoration: none; color: var(--al-text-muted);
           font-size: 13.5px; font-weight: 600;
           transition: all 0.18s ease; position: relative;
           cursor: pointer; white-space: nowrap; letter-spacing: 0.2px;
         }
-        .al-nav-item:hover { background: rgba(59,130,246,0.07); color: #94a3b8; }
+        .al-nav-item:hover { background: var(--al-nav-hover); color: var(--al-text-secondary); }
         .al-nav-item.active {
-          background: rgba(37,99,235,0.12); color: #60a5fa;
-          border: 1px solid rgba(59,130,246,0.15);
+          background: var(--al-nav-active); color: var(--al-nav-active-color);
+          border: 1px solid var(--al-nav-active-border);
         }
         .al-active-bar {
           position: absolute; right: 0; top: 50%; transform: translateY(-50%);
@@ -212,7 +271,7 @@ export default function AdminLayout({ children, title }) {
         }
 
         /* ── Bottom / User card ── */
-        .al-sidebar-bottom { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+        .al-sidebar-bottom { border-top: 1px solid var(--al-divider); padding-top: 10px; }
         .al-user-card {
           display: flex; align-items: center; gap: 10px;
           padding: 10px 14px; margin-bottom: 6px;
@@ -226,13 +285,13 @@ export default function AdminLayout({ children, title }) {
         }
         .al-icon-btn {
           display: flex; align-items: center; justify-content: center; gap: 5px;
-          padding: 8px 10px; background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
-          color: #475569; cursor: pointer; font-size: 12.5px;
+          padding: 8px 10px; background: var(--al-row-bg);
+          border: 1px solid var(--al-border); border-radius: 8px;
+          color: var(--al-text-muted); cursor: pointer; font-size: 12.5px;
           transition: all 0.15s; white-space: nowrap;
           font-family: 'Cairo',sans-serif; font-weight: 600;
         }
-        .al-icon-btn:hover { background: rgba(255,255,255,0.05); color: #94a3b8; border-color: rgba(255,255,255,0.1); }
+        .al-icon-btn:hover { background: var(--al-row-bg-hover); color: var(--al-text-secondary); border-color: var(--al-border-md); }
         .al-icon-btn.danger:hover { background: rgba(239,68,68,0.08); color: #f87171; border-color: rgba(239,68,68,0.2); }
 
         /* ── Main area ── */
@@ -241,20 +300,20 @@ export default function AdminLayout({ children, title }) {
         .al-header {
           display: flex; align-items: center; justify-content: space-between;
           padding: 0 28px; height: 64px;
-          background: linear-gradient(90deg, #0d1526 0%, #0a1020 100%);
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          background: var(--al-header-bg);
+          border-bottom: 1px solid var(--al-divider);
           flex-shrink: 0; gap: 12px;
         }
         .al-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
         .al-breadcrumb { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; flex-wrap: wrap; }
-        .al-page-title { font-size: 17px; font-weight: 800; color: #e2e8f0; margin: 0; letter-spacing: -0.3px; }
+        .al-page-title { font-size: 17px; font-weight: 800; color: var(--al-text-primary); margin: 0; letter-spacing: -0.3px; }
 
         .al-back-btn {
           display: flex; align-items: center; gap: 6px;
           padding: 7px 14px; border-radius: 8px;
-          border: 1px solid rgba(255,255,255,0.07);
-          background: rgba(255,255,255,0.02);
-          color: #64748b; cursor: pointer; font-size: 12.5px; font-weight: 600;
+          border: 1px solid var(--al-back-btn-border);
+          background: var(--al-back-btn-bg);
+          color: var(--al-back-btn-color); cursor: pointer; font-size: 12.5px; font-weight: 600;
           transition: all 0.15s; font-family: 'Cairo',sans-serif; white-space: nowrap;
         }
         .al-back-btn:hover { border-color: rgba(59,130,246,0.3); color: #93c5fd; background: rgba(59,130,246,0.05); }
@@ -262,8 +321,8 @@ export default function AdminLayout({ children, title }) {
         .al-badge {
           display: flex; align-items: center; gap: 6px;
           padding: 6px 12px; border-radius: 8px;
-          background: rgba(37,99,235,0.08); border: 1px solid rgba(59,130,246,0.15);
-          font-size: 12px; font-weight: 700; color: #60a5fa; white-space: nowrap;
+          background: var(--al-badge-bg); border: 1px solid var(--al-badge-border);
+          font-size: 12px; font-weight: 700; color: var(--al-badge-color); white-space: nowrap;
         }
         .al-dot {
           width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
@@ -275,10 +334,10 @@ export default function AdminLayout({ children, title }) {
           50%      { opacity: 0.7; box-shadow: 0 0 12px rgba(34,197,94,0.4); }
         }
 
-        .al-content { flex: 1; overflow-y: auto; padding: 28px; background: #080e1a; }
+        .al-content { flex: 1; overflow-y: auto; padding: 28px; background: var(--al-content-bg); }
         .al-content::-webkit-scrollbar { width: 5px; }
         .al-content::-webkit-scrollbar-track { background: transparent; }
-        .al-content::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.15); border-radius: 5px; }
+        .al-content::-webkit-scrollbar-thumb { background: var(--al-scrollbar); border-radius: 5px; }
 
         @keyframes adminFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .al-page-enter { animation: adminFadeIn 0.22s ease forwards; }
@@ -287,11 +346,10 @@ export default function AdminLayout({ children, title }) {
         .al-hamburger {
           display: none; align-items: center; justify-content: center;
           width: 38px; height: 38px; flex-shrink: 0;
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 9px; background: rgba(255,255,255,0.02);
-          color: #64748b; cursor: pointer;
+          border: 1px solid var(--al-border-md);
+          border-radius: 9px; background: var(--al-row-bg);
+          color: var(--al-text-muted); cursor: pointer;
         }
-        /* Collapse button hidden on mobile */
         .al-collapse-btn { display: flex; }
 
         /* ── Mobile drawer backdrop ── */
@@ -307,12 +365,12 @@ export default function AdminLayout({ children, title }) {
           display: none;
           position: fixed; top: 0; right: 0; bottom: 0;
           width: 240px; z-index: 30;
-          background: linear-gradient(180deg, #0d1526 0%, #0a1020 100%);
-          border-left: 1px solid rgba(59,130,246,0.15);
+          background: var(--al-sidebar-bg);
+          border-left: 1px solid var(--al-sidebar-border);
           flex-direction: column;
           transform: translateX(100%);
           transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-          box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+          box-shadow: -8px 0 40px rgba(0,0,0,0.3);
           overflow: hidden;
         }
         .al-mobile-sidebar.open { transform: translateX(0); }
@@ -320,9 +378,9 @@ export default function AdminLayout({ children, title }) {
         .al-mobile-close {
           display: flex; align-items: center; justify-content: center;
           width: 32px; height: 32px; border-radius: 8px;
-          border: 1px solid rgba(255,255,255,0.06);
-          background: rgba(255,255,255,0.02);
-          color: #64748b; cursor: pointer; flex-shrink: 0;
+          border: 1px solid var(--al-border);
+          background: var(--al-row-bg);
+          color: var(--al-text-muted); cursor: pointer; flex-shrink: 0;
         }
 
         /* ── Responsive breakpoints ── */
@@ -363,16 +421,15 @@ export default function AdminLayout({ children, title }) {
           {/* Header */}
           <header className="al-header">
             <div className="al-header-left">
-              {/* Hamburger — mobile only */}
               <button className="al-hamburger" onClick={() => setMobileOpen(true)}>
                 <Menu size={18} />
               </button>
 
               <div style={{ minWidth: 0 }}>
                 <div className="al-breadcrumb">
-                  <span style={{ fontSize: 11, color: '#334155' }}>لوحة التحكم</span>
-                  <span style={{ fontSize: 11, color: '#1e3a5f' }}>/</span>
-                  <span style={{ fontSize: 11, color: '#3b82f6', fontWeight: 700 }}>{currentPage?.label}</span>
+                  <span style={{ fontSize: 11, color: 'var(--al-breadcrumb-1)' }}>لوحة التحكم</span>
+                  <span style={{ fontSize: 11, color: 'var(--al-breadcrumb-2)' }}>/</span>
+                  <span style={{ fontSize: 11, color: 'var(--al-breadcrumb-3)', fontWeight: 700 }}>{currentPage?.label}</span>
                 </div>
                 <h1 className="al-page-title">{title || currentPage?.label}</h1>
               </div>
