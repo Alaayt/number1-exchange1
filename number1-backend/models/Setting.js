@@ -12,9 +12,9 @@ const settingSchema = new mongoose.Schema({
   maintenanceMode:     { type: Boolean, default: false },
   platformNameAr:      { type: String,  default: 'نمبر ون' },
   platformNameEn:      { type: String,  default: 'Number1' },
-  platformUrl:         { type: String,  default: '' },
-  supportEmail:        { type: String,  default: '' },
-  supportTelegram:     { type: String,  default: '' },
+  platformUrl:         { type: String,  default: '@nimber1' },
+  supportEmail:        { type: String,  default: '@nimber1' },
+  supportTelegram:     { type: String,  default: '@nimber1' },
   platformEnabled:     { type: Boolean, default: true },
   registrationEnabled: { type: Boolean, default: true },
 
