@@ -157,7 +157,6 @@ exports.notifyDepositRequest = async (deposit, user) => {
 ━━━━━━━━━━━━━━━━━━━
 💵 <b>المبلغ:</b> <code>${deposit.amount}</code> USDT
 🔗 <b>TXID:</b> <code>${deposit.txid}</code>
-🆔 <b>مرجع:</b> <code>${deposit._id}</code>
 ━━━━━━━━━━━━━━━━━━━
 ⏰ ${new Date().toLocaleString('ar-EG')}
   `.trim()
@@ -234,7 +233,6 @@ exports.editDepositMessage = async (messageId, deposit, status) => {
 ━━━━━━━━━━━━━━━━━━━
 💵 <b>المبلغ:</b> <code>${deposit.amount}</code> USDT
 🔗 <b>TXID:</b> <code>${deposit.txid}</code>
-🆔 <b>مرجع:</b> <code>${deposit._id}</code>
 ━━━━━━━━━━━━━━━━━━━${statusStamp}
 ⏰ ${new Date().toLocaleString('ar-EG')}
     `.trim()
