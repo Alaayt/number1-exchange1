@@ -87,7 +87,7 @@ export default function TabGeneral({ settings, set, togglePlatform }) {
               style={{ ...S.input, direction: 'ltr', textAlign: 'left' }}
               value={settings.contactTelegram || ''}
               onChange={e => set('contactTelegram', e.target.value)}
-              placeholder="@Number1Exchange"
+              placeholder="@nimber1"
             />
           </Field>
           <Field label="WhatsApp">
@@ -104,7 +104,7 @@ export default function TabGeneral({ settings, set, togglePlatform }) {
               type="email"
               value={settings.contactEmail || ''}
               onChange={e => set('contactEmail', e.target.value)}
-              placeholder="support@number1exchange.com"
+              placeholder="number1.yaser@gmail.com"
             />
           </Field>
         </div>

@@ -19,9 +19,9 @@ const settingSchema = new mongoose.Schema({
   registrationEnabled: { type: Boolean, default: true },
 
   // ── بيانات التواصل ────────────────────────────
-  contactTelegram: { type: String, default: '@Number1Exchange' },
+  contactTelegram: { type: String, default: '@nimber1' },
   contactWhatsapp: { type: String, default: '' },
-  contactEmail:    { type: String, default: 'support@number1exchange.com' },
+  contactEmail:    { type: String, default: 'number1.yaser@gmail.com' },
   contactWebsite:  { type: String, default: '' },
 
   // ── إشعارات ──────────────────────────────────

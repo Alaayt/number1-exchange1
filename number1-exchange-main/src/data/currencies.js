@@ -95,5 +95,5 @@ export const FAQS = [
   { qAr:'كم يستغرق التحويل؟',         qEn:'How long does the transfer take?',     aAr:'معظم العمليات تتم خلال 1-5 دقائق. في أوقات ازدحام الشبكة قد تصل إلى 15 دقيقة.', aEn:'Most operations complete within 1-5 minutes. During network congestion it may take up to 15 minutes.' },
   { qAr:'هل بياناتي وأموالي آمنة؟',   qEn:'Are my data and funds safe?',          aAr:'نعم! نستخدم تشفير AES-256 وحماية متعددة الطبقات مع شهادة ISO 27001.', aEn:'Yes! We use AES-256 encryption and multi-layer protection with ISO 27001 certification.' },
   { qAr:'ما هي الرسوم على كل عملية؟', qEn:'What are the fees per transaction?',   aAr:'رسومنا تبدأ من 0.1% فقط على كل عملية تبادل.', aEn:'Our fees start from just 0.1% per exchange operation.' },
-  { qAr:'كيف أتواصل مع فريق الدعم؟', qEn:'How do I contact support?',            aAr:'عبر المساعد الذكي أو تيليجرام @Number1Exchange أو واتساب. الدعم متاح 24/7.', aEn:'Via AI assistant, Telegram @Number1Exchange, or WhatsApp. Support available 24/7.' },
+  { qAr:'كيف أتواصل مع فريق الدعم؟', qEn:'How do I contact support?',            aAr:'عبر المساعد الذكي أو تيليجرام @nimber1 أو واتساب. الدعم متاح 24/7.', aEn:'Via AI assistant, Telegram @nimber1, or WhatsApp. Support available 24/7.' },
 ]
