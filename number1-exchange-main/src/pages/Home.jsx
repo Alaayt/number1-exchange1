@@ -828,68 +828,11 @@ function WalletBannerV3({ onOpenAuth }) {
 
 const WalletBanner = WalletBannerV3
 
-// ══ Exchange Form ══
+// ══ Exchange CTA Card ══
 function ExchangeForm() {
-  const {t,lang}=useLang()
+  const {lang}=useLang()
   const navigate=useNavigate()
-  const [sendMethod,setSendMethod]=useState(SEND_METHODS[0])
-  const [receiveMethod,setReceiveMethod]=useState(RECEIVE_METHODS[0])
-  const [sendAmount,setSendAmount]=useState("100")
-  const [rateFactor,setRateFactor]=useState(1)
-  const [rateDir,setRateDir]=useState(null)
-  const [userPhone,setUserPhone]=useState("")
-  const [recipientId,setRecipientId]=useState("")
-  const [email,setEmail]=useState("")
-  const [aml,setAml]=useState(false)
-  const [tos,setTos]=useState(false)
-  const [modalOpen,setModalOpen]=useState(false)
-  const [orderData,setOrderData]=useState(null)
-  const [openPicker,setOpenPicker]=useState(null)
-  const [swapping,setSwapping]=useState(false)
-  const [adminMethods,setAdminMethods]=useState({cryptos:[],wallets:[]})
-  const [emailErr,setEmailErr]=useState('')
-  const [phoneErr,setPhoneErr]=useState('')
-  const [recipientErr,setRecipientErr]=useState('')
-  const {user}=useAuth()
-  const [walletBalance,setWalletBalance]=useState(null)
 
-  // تعبئة الإيميل تلقائياً عند تسجيل الدخول
-  useEffect(()=>{
-    if(user?.email) setEmail(user.email)
-  },[user])
-
-  const validateEmail=v=>{
-    if(!v) return lang==='ar'?'البريد الإلكتروني مطلوب':'Email is required'
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return lang==='ar'?'صيغة البريد غير صحيحة':'Invalid email format'
-    return ''
-  }
-  const validatePhone=v=>{
-    if(!v) return lang==='ar'?'رقم الهاتف مطلوب':'Phone is required'
-    if(!/^\+?[0-9\s\-]{7,20}$/.test(v.trim())) return lang==='ar'?'رقم الهاتف غير صحيح (أرقام فقط)':'Invalid phone number'
-    return ''
-  }
-  const validateRecipient=v=>{
-    if(!v||v.trim().length<5) return lang==='ar'?'يجب إدخال 5 أحرف على الأقل':'At least 5 characters required'
-    return ''
-  }
-  const closePicker=useCallback(()=>setOpenPicker(null),[])
-
-  useEffect(()=>{
-    fetch(`${API}/api/public/payment-methods`)
-      .then(r=>r.json())
-      .then(d=>{ if(d.success) setAdminMethods(d) })
-      .catch(()=>{})
-  },[])
-
-  // جلب رصيد المحفظة عند تسجيل الدخول
-  useEffect(()=>{
-    if(!user){setWalletBalance(null);return}
-    const token=localStorage.getItem('n1_token')
-    fetch(`${API}/api/wallet`,{headers:{Authorization:`Bearer ${token}`}})
-      .then(r=>r.json())
-      .then(d=>{if(d.success)setWalletBalance(d.wallet.balance)})
-      .catch(()=>{})
-  },[user])
 
   const isEgp=sendMethod.type==="egp"
   const isUSDT=sendMethod.id==="usdt-trc"
