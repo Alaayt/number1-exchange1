@@ -210,3 +210,48 @@ exports.editMessage = async (messageId, newText) => {
     console.error('editMessage error:', error.message)
   }
 }
+
+// ─── تحديث رسالة طلب الإيداع بعد القرار ─────
+exports.editDepositMessage = async (messageId, deposit, status) => {
+  if (!messageId) return
+
+  try {
+    const { token, chatId } = await getConfig()
+    if (!token || !chatId) return
+
+    const userName  = deposit.user?.name  || '—'
+    const userEmail = deposit.user?.email || '—'
+
+    const statusStamp = status === 'approved'
+      ? `\n✅ <b>تمت الموافقة</b> — تم إضافة <b>${deposit.amount} USDT</b> للمحفظة`
+      : `\n❌ <b>تم الرفض</b> — لم يُضَف أي رصيد`
+
+    const newText = `
+💰 <b>طلب إيداع محفظة — Number1</b>
+━━━━━━━━━━━━━━━━━━━
+👤 <b>المستخدم:</b> ${userName}
+📧 <b>الإيميل:</b> ${userEmail}
+━━━━━━━━━━━━━━━━━━━
+💵 <b>المبلغ:</b> <code>${deposit.amount}</code> USDT
+🔗 <b>TXID:</b> <code>${deposit.txid}</code>
+🆔 <b>مرجع:</b> <code>${deposit._id}</code>
+━━━━━━━━━━━━━━━━━━━${statusStamp}
+⏰ ${new Date().toLocaleString('ar-EG')}
+    `.trim()
+
+    await axios.post(
+      `https://api.telegram.org/bot${token}/editMessageText`,
+      {
+        chat_id:      chatId,
+        message_id:   messageId,
+        text:         newText,
+        parse_mode:   'HTML',
+        reply_markup: { inline_keyboard: [] },
+      }
+    )
+  } catch (error) {
+    if (!error.response?.data?.description?.includes('message is not modified')) {
+      console.error('editDepositMessage error:', error.response?.data || error.message)
+    }
+  }
+}

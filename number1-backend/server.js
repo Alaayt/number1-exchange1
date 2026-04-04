@@ -51,7 +51,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const { callback_query } = req.body;
     if (!callback_query) return res.json({ ok: true });
 
-    const { data, id: callbackQueryId } = callback_query;
+    const { data, id: callbackQueryId, message: cbMessage } = callback_query;
 
     const telegramService = require('./services/telegram');
 
@@ -83,7 +83,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       }
 
       try {
-        const deposit = await Deposit.findById(orderId)
+        const deposit = await Deposit.findById(orderId).populate('user', 'name email')
         if (!deposit) {
           await telegramService.answerCallbackQuery(callbackQueryId, '❌ الطلب غير موجود')
           return res.json({ ok: true })
@@ -125,16 +125,18 @@ app.post('/api/telegram/webhook', async (req, res) => {
             callbackQueryId,
             `✅ تمت الموافقة — رصيد المحفظة: ${wallet.balance} USDT`
           )
+          await telegramService.editDepositMessage(cbMessage?.message_id, deposit, 'approved')
 
-          console.log(`[Deposit] Approved — depositId=${deposit._id}, user=${deposit.user}, amount=${deposit.amount}`)
+          console.log(`[Deposit] Approved — depositId=${deposit._id}, user=${deposit.user?._id}, amount=${deposit.amount}`)
         } else {
           deposit.status      = 'rejected'
           deposit.processedAt = new Date()
           await deposit.save()
 
           await telegramService.answerCallbackQuery(callbackQueryId, '❌ تم رفض طلب الإيداع')
+          await telegramService.editDepositMessage(cbMessage?.message_id, deposit, 'rejected')
 
-          console.log(`[Deposit] Rejected — depositId=${deposit._id}, user=${deposit.user}`)
+          console.log(`[Deposit] Rejected — depositId=${deposit._id}, user=${deposit.user?._id}`)
         }
       } catch (depErr) {
         console.error('[Deposit Webhook] Error:', depErr.message, depErr.stack)
