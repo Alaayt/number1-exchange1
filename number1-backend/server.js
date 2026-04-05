@@ -251,4 +251,13 @@ app.listen(PORT, async () => {
   } else {
     console.warn('⚠️ BACKEND_URL not set — Telegram Webhook not auto-registered. Set BACKEND_URL in .env')
   }
+  app.use(cors({
+  origin: [
+    'https://number1-puce-ten.vercel.app',
+    'https://number1-r907uo1gk-alaayts-projects.vercel.app',
+    'http://localhost:5173',
+  ],
+  credentials: true,
+}));
+
 });
