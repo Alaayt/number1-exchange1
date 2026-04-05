@@ -2,7 +2,8 @@
 // الصفحة 2 — نموذج التبادل: المبلغ + التفاصيل + الإرسال
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import useLang from '../context/useLang'
+import useLang  from '../context/useLang'
+import useAuth  from '../context/useAuth'
 import FlowDots from '../components/shared/FlowDots'
 import { SEND_METHODS, RECEIVE_METHODS } from '../data/currencies'
 
@@ -71,6 +72,7 @@ export default function ExchangeFormPage() {
   const navigate       = useNavigate()
   const [params]       = useSearchParams()
   const { lang }       = useLang()
+  const { user }       = useAuth()
 
   const fromId = params.get('from')
   const toId   = params.get('to')
@@ -115,7 +117,7 @@ export default function ExchangeFormPage() {
   const [recipientId,  setRecipientId]  = useState('')  // MoneyGo ID
   const [usdtAddress,  setUsdtAddress]  = useState('')  // عنوان USDT للاستلام
   const [usdtNetwork,  setUsdtNetwork]  = useState('TRC20')
-  const [email,        setEmail]        = useState('')
+  const [email,        setEmail]        = useState(() => user?.email || '')
   const [userPhone,    setUserPhone]    = useState('')
   const [txid,         setTxid]         = useState('')
   const [receipt,      setReceipt]      = useState(null)
@@ -125,6 +127,11 @@ export default function ExchangeFormPage() {
   const [mathInput,    setMathInput]    = useState('')
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState('')
+
+  // ── تعبئة الإيميل تلقائياً من حساب المستخدم ──────────
+  useEffect(() => {
+    if (user?.email) setEmail(user.email)
+  }, [user?.email])
 
   // ── حسابات ────────────────────────────────────────────
   const currentRate   = resolveRate(rates, fromId, toId)
@@ -384,10 +391,11 @@ export default function ExchangeFormPage() {
           <label className="ef-label">البريد الإلكتروني <span style={{ color: 'var(--red)' }}>*</span></label>
           <input
             type="email" value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={e => !user?.email && setEmail(e.target.value)}
             placeholder="example@email.com"
             className="ef-input ef-mono"
-            style={{ direction: 'ltr' }}
+            readOnly={!!user?.email}
+            style={{ direction: 'ltr', opacity: user?.email ? 0.75 : 1, cursor: user?.email ? 'default' : 'text' }}
           />
 
           {isEgpSend && (
