@@ -64,6 +64,7 @@ function toPaymentMethod(sendId) {
 function toOrderType(sendId, recvId) {
   if (sendId === 'wallet-usdt' && recvId === 'usdt-recv') return 'WALLET_TO_USDT'
   if (sendId === 'wallet-usdt') return 'EGP_WALLET_TO_MONEYGO'
+  if (sendId === 'usdt-trc' && recvId === 'wallet-recv') return 'USDT_TO_WALLET'
   if (sendId === 'usdt-trc')    return 'USDT_TO_MONEYGO'
   return 'EGP_WALLET_TO_MONEYGO'
 }
@@ -140,10 +141,23 @@ export default function ExchangeFormPage() {
     return amt > 0 ? (amt * currentRate).toFixed(4) : ''
   }, [sendAmount, currentRate])
 
-  const isMoneyGoRecv = toId === 'mgo-recv'
-  const isUsdtRecv    = toId === 'usdt-recv'
-  const isUsdtSend    = fromId === 'usdt-trc'
-  const isEgpSend     = sendMethod?.type === 'egp'
+  const isMoneyGoRecv  = toId === 'mgo-recv'
+  const isUsdtRecv     = toId === 'usdt-recv'
+  const isWalletRecv   = toId === 'wallet-recv'
+  const isUsdtSend     = fromId === 'usdt-trc'
+  const isEgpSend      = sendMethod?.type === 'egp'
+
+  // ── جلب walletId تلقائياً للحساب الداخلي ──────────────
+  const [walletId, setWalletId] = useState('')
+  useEffect(() => {
+    if (!isWalletRecv || !user) return
+    fetch(`${API}/api/wallet`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('n1_token')}` }
+    })
+      .then(r => r.json())
+      .then(d => { if (d.success) setWalletId(d.wallet.walletId) })
+      .catch(() => {})
+  }, [isWalletRecv, user])
 
   // ── Validation ─────────────────────────────────────────
   const emailOk   = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
@@ -151,6 +165,7 @@ export default function ExchangeFormPage() {
   const mathOk    = mathInput.trim() === math.ans
   const recipOk   = isMoneyGoRecv ? recipientId.trim().length >= 3
                   : isUsdtRecv    ? usdtAddress.trim().length >= 10
+                  : isWalletRecv  ? walletId.length > 0
                   : true
 
   const canSubmit = amountOk && emailOk && recipOk && agreed && mathOk && !loading
@@ -207,7 +222,7 @@ export default function ExchangeFormPage() {
           },
           moneygo: {
             recipientName:  email.split('@')[0],
-            recipientPhone: isMoneyGoRecv ? recipientId : (isUsdtRecv ? usdtAddress : ''),
+            recipientPhone: isMoneyGoRecv ? recipientId : isUsdtRecv ? usdtAddress : isWalletRecv ? walletId : '',
             amountUSD:      parseFloat(receiveAmount) || 0,
           },
           exchangeRate: {
