@@ -30,7 +30,7 @@ function resolveRate(rates, sendId, recvId) {
   const s = sendId || ''
   const r = recvId || ''
   if (s === 'mgo-send')    return rates.moneygoRate   || 1
-  if (s === 'wallet-usdt') return rates.usdtBuyRate   || 1
+  if (s === 'wallet-usdt') return 1  // المحفظة الداخلية → 1:1 دائماً
   if (r === 'usdt-recv')   return rates.usdtBuyRate   || 1
   if (r === 'mgo-recv') {
     if (s === 'usdt-trc')  return rates.usdtBuyRate   || 1
@@ -60,6 +60,7 @@ function toPaymentMethod(sendId) {
 }
 
 function toOrderType(sendId, recvId) {
+  if (sendId === 'wallet-usdt' && recvId === 'usdt-recv') return 'WALLET_TO_USDT'
   if (sendId === 'wallet-usdt') return 'EGP_WALLET_TO_MONEYGO'
   if (sendId === 'usdt-trc')    return 'USDT_TO_MONEYGO'
   return 'EGP_WALLET_TO_MONEYGO'
@@ -401,18 +402,7 @@ export default function ExchangeFormPage() {
             </>
           )}
 
-          {isUsdtSend && (
-            <>
-              <label className="ef-label" style={{ marginTop: 14 }}>رقم المعاملة TXID (اختياري)</label>
-              <input
-                type="text" value={txid}
-                onChange={e => setTxid(e.target.value)}
-                placeholder="الصق الـ TXID هنا لتسريع التحقق..."
-                className="ef-input ef-mono"
-                style={{ direction: 'ltr' }}
-              />
-            </>
-          )}
+
         </div>
 
         {/* ── رفع إيصال (للـ EGP) ── */}

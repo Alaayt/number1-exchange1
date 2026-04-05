@@ -52,5 +52,6 @@ export const EXCHANGE_RATES = {
   // ── حساب داخلي ──
   'usdt-trc_wallet-recv':   1.0,   // إيداع USDT → محفظة داخلية
   'wallet-usdt_mgo-recv':   1.0,   // تحويل محفظة داخلية → MoneyGo
+  'wallet-usdt_usdt-recv':  1.0,   // تحويل محفظة داخلية → USDT خارجي
 }
 

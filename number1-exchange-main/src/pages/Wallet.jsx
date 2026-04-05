@@ -325,6 +325,7 @@ function DepositModal({ isOpen, onClose, onSuccess }) {
 function WithdrawModal({ isOpen, onClose, balance }) {
   const [amount,       setAmount]       = useState('')
   const [method,       setMethod]       = useState('moneygo')
+  const [usdtAddress,  setUsdtAddress]  = useState('')
   const [withdrawInfo, setWithdrawInfo] = useState(null)
   const [infoLoading,  setInfoLoading]  = useState(true)
 
@@ -340,10 +341,10 @@ function WithdrawModal({ isOpen, onClose, balance }) {
       .finally(() => setInfoLoading(false))
   }, [isOpen])
 
-  const handleClose = () => { setAmount(''); setMethod('moneygo'); onClose() }
+  const handleClose = () => { setAmount(''); setMethod('moneygo'); setUsdtAddress(''); onClose() }
 
   const buildMessage = () => {
-    const methodLabel = method === 'moneygo' ? 'MoneyGo USD' : 'USDT TRC20'
+    const methodLabel = method === 'moneygo' ? 'MoneyGo USD' : `USDT TRC20 على العنوان: ${usdtAddress}`
     return `مرحباً، أريد سحب ${amount || '...'} USDT من رصيد محفظتي إلى ${methodLabel}`
   }
 
@@ -363,7 +364,8 @@ function WithdrawModal({ isOpen, onClose, balance }) {
 
   if (!isOpen) return null
 
-  const amountValid = amount && parseFloat(amount) > 0 && parseFloat(amount) <= balance
+  const amountValid = amount && parseFloat(amount) > 0 && parseFloat(amount) <= balance &&
+    (method === 'moneygo' || (method === 'usdt' && usdtAddress.trim().length > 10))
 
   return (
     <div onClick={e => { if (e.target === e.currentTarget) handleClose() }}
@@ -400,6 +402,25 @@ function WithdrawModal({ isOpen, onClose, balance }) {
               ))}
             </div>
           </div>
+
+          {/* حقل عنوان المحفظة — يظهر عند اختيار USDT */}
+          {method === 'usdt' && (
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-3)', marginBottom: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1 }}>عنوان محفظتك (TRC20)</label>
+              <input
+                type="text"
+                value={usdtAddress}
+                onChange={e => setUsdtAddress(e.target.value)}
+                placeholder="T... أدخل عنوان USDT TRC20"
+                style={{ width: '100%', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-1)', borderRadius: 12, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.82rem', boxSizing: 'border-box', outline: 'none', direction: 'ltr' }}
+                onFocus={e => e.target.style.borderColor = '#26a17b'}
+                onBlur={e => e.target.style.borderColor = 'var(--border-1)'}
+              />
+              <div style={{ marginTop: 6, padding: '8px 12px', background: 'rgba(248,81,73,0.06)', border: '1px solid rgba(248,81,73,0.2)', borderRadius: 8, fontSize: '0.72rem', color: '#e2a0a0', fontFamily: "'Tajawal',sans-serif", lineHeight: 1.5 }}>
+                ⚠️ تأكد من إدخال عنوان شبكة TRC20 فقط — إرسال على شبكة أخرى سيؤدي لخسارة أموالك
+              </div>
+            </div>
+          )}
           {amountValid && (
             <div style={{ background: 'rgba(0,210,255,0.04)', border: '1px solid rgba(0,210,255,0.15)', borderRadius: 12, padding: '12px 14px' }}>
               <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 8, letterSpacing: 1 }}>الرسالة التي ستُرسل للأدمن</div>
