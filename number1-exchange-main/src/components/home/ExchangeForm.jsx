@@ -70,6 +70,16 @@ function ExchangeForm() {
   const [amlChecked,     setAmlChecked]     = useState(false)
   const [tosChecked,     setTosChecked]     = useState(false)
 
+  // ── أخطاء التحقق من الحقول ────────────────────────
+  const [emailErr,         setEmailErr]         = useState('')
+  const [phoneErr,         setPhoneErr]         = useState('')
+  const [recipientErr,     setRecipientErr]     = useState('')
+  const [amountErr,        setAmountErr]        = useState('')
+  const [amlErr,           setAmlErr]           = useState('')
+  const [tosErr,           setTosErr]           = useState('')
+  const [moneygoWalletErr, setMoneygoWalletErr] = useState('')
+  const [usdtAddressErr,   setUsdtAddressErr]   = useState('')
+
   // ── Modal ──────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false)
   const [orderData, setOrderData] = useState(null)
@@ -129,8 +139,8 @@ function ExchangeForm() {
 
   // ── ملء الإيميل تلقائياً إذا كان المستخدم مسجلاً ──
   useEffect(() => {
-    if (user?.email) setEmail(user.email)
-  }, [user])
+    if (user?.email && !email) setEmail(user.email)
+  }, [user]) // email intentionally omitted — one-time fill on user load
 
   // ── Rate fluctuation animation ─────────────────────
   useEffect(() => {
@@ -189,14 +199,27 @@ function ExchangeForm() {
 
   const handleContactUs = () => {
     const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-    if (!email || !emailRx.test(email))
-      return alert('يرجى إدخال بريد إلكتروني صحيح')
-    if (!moneygoWallet || moneygoWallet.trim().length < 5)
-      return alert('يرجى إدخال عنوان محفظة MoneyGo الخاصة بك')
-    if (!usdtAddress || usdtAddress.trim().length < 10)
-      return alert('يرجى إدخال عنوان محفظة USDT للاستلام')
-    if (!amlChecked || !tosChecked)
-      return alert('يرجى الموافقة على الشروط')
+    let hasErr = false
+
+    if (!email || !emailRx.test(email)) {
+      setEmailErr('يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com)')
+      hasErr = true
+    } else { setEmailErr('') }
+
+    if (!moneygoWallet || moneygoWallet.trim().length < 5) {
+      setMoneygoWalletErr('يرجى إدخال عنوان محفظة MoneyGo الخاصة بك')
+      hasErr = true
+    } else { setMoneygoWalletErr('') }
+
+    if (!usdtAddress || usdtAddress.trim().length < 10) {
+      setUsdtAddressErr('يرجى إدخال عنوان محفظة USDT للاستلام')
+      hasErr = true
+    } else { setUsdtAddressErr('') }
+
+    if (!amlChecked) { setAmlErr('مطلوب'); hasErr = true } else { setAmlErr('') }
+    if (!tosChecked) { setTosErr('مطلوب'); hasErr = true } else { setTosErr('') }
+
+    if (hasErr) return
 
     const msg  = buildContactMessage()
     const wa   = contactInfo?.contactWhatsapp
@@ -218,27 +241,42 @@ function ExchangeForm() {
   // ══════════════════════════════════════════════════
   const handleSubmit = () => {
     const amt = parseFloat(sendAmount)
-
     const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-    // قبول أرقام دولية: + اختياري، 7-20 رقم وفراغات وشرطات
     const phoneRx = /^\+?[0-9\s\-]{7,20}$/
+    let hasErr = false
 
-    if (!email || !emailRx.test(email))
-      return alert('يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com)')
+    if (!email || !emailRx.test(email)) {
+      setEmailErr('يرجى إدخال بريد إلكتروني صحيح (مثال: name@example.com)')
+      hasErr = true
+    } else { setEmailErr('') }
 
     if (sendIsWallet) {
-      if (!userPhone)
-        return alert(`يرجى إدخال رقم هاتفك على ${sendItem?.name}`)
-      if (!phoneRx.test(userPhone.trim()))
-        return alert('رقم الهاتف غير صحيح — أدخل رقمك مع كود الدولة (مثال: 01012345678 أو +966501234567)')
+      if (!userPhone) {
+        setPhoneErr(`يرجى إدخال رقم هاتفك على ${sendItem?.name}`)
+        hasErr = true
+      } else if (!phoneRx.test(userPhone.trim())) {
+        setPhoneErr('رقم الهاتف غير صحيح — أدخل رقمك مع كود الدولة (مثال: 01012345678 أو +966501234567)')
+        hasErr = true
+      } else { setPhoneErr('') }
     }
 
-    if (!recipientId || recipientId.trim().length < 5)
-      return alert('يرجى إدخال بيانات الاستلام بشكل صحيح (5 أحرف على الأقل)')
+    if (!recipientId || recipientId.trim().length < 5) {
+      setRecipientErr('يرجى إدخال بيانات الاستلام بشكل صحيح (5 أحرف على الأقل)')
+      hasErr = true
+    } else { setRecipientErr('') }
 
-    if (!amlChecked || !tosChecked) return alert('يرجى الموافقة على الشروط')
-    if (amt < minOrder)             return alert(`الحد الأدنى ${minOrder} وحدة`)
-    if (amt > maxOrder)             return alert(`الحد الأقصى ${maxOrder} وحدة`)
+    if (!amlChecked) { setAmlErr('مطلوب'); hasErr = true } else { setAmlErr('') }
+    if (!tosChecked) { setTosErr('مطلوب'); hasErr = true } else { setTosErr('') }
+
+    if (isNaN(amt) || amt < minOrder) {
+      setAmountErr(`الحد الادنى ${minOrder} وحدة`)
+      hasErr = true
+    } else if (amt > maxOrder) {
+      setAmountErr(`الحد الاقصى ${maxOrder} وحدة`)
+      hasErr = true
+    } else { setAmountErr('') }
+
+    if (hasErr) return
 
     setOrderData({
       sendItem,
@@ -304,9 +342,9 @@ function ExchangeForm() {
               <input
                 type="number"
                 value={sendAmount}
-                onChange={e => setSendAmount(e.target.value)}
+                onChange={e => { setSendAmount(e.target.value); setAmountErr('') }}
                 placeholder="0.00"
-                style={amountInput}
+                style={{ ...amountInput, ...(amountErr ? { color: '#f87171' } : {}) }}
               />
               <MethodPicker
                 wallets={methods?.wallets || []}
@@ -318,6 +356,8 @@ function ExchangeForm() {
               />
             </div>
           </div>
+
+          {amountErr && <div style={{ ...errText, marginTop: 6, marginBottom: 2 }}>{amountErr}</div>}
 
           {/* ── فاصل التبادل ────────────────────── */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
@@ -395,36 +435,40 @@ function ExchangeForm() {
               </div>
 
               {/* البريد الإلكتروني */}
-              <Field label="EMAIL · البريد الإلكتروني">
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="example@email.com" style={inp} onFocus={focusOn} onBlur={focusOff} />
+              <Field label="EMAIL · البريد الإلكتروني" error={emailErr}>
+                <input type="email" value={email} onChange={e => { setEmail(e.target.value); setEmailErr('') }}
+                  placeholder="example@email.com"
+                  style={{ ...inp, ...(emailErr ? inpErr : {}) }}
+                  onFocus={focusOn} onBlur={focusOff} />
               </Field>
 
               {/* عنوان محفظة MoneyGo للإرسال منها */}
-              <Field label="عنوان محفظة MoneyGo · للإرسال منها">
-                <input type="text" value={moneygoWallet} onChange={e => setMoneygoWallet(e.target.value)}
+              <Field label="عنوان محفظة MoneyGo · للإرسال منها" error={moneygoWalletErr}>
+                <input type="text" value={moneygoWallet} onChange={e => { setMoneygoWallet(e.target.value); setMoneygoWalletErr('') }}
                   placeholder="أدخل عنوان أو ID محفظتك على MoneyGo"
-                  style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem' }}
+                  style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem', ...(moneygoWalletErr ? inpErr : {}) }}
                   onFocus={focusOn} onBlur={focusOff} />
                 <Hint text="ℹ️ العنوان الذي ستحوّل منه — للتحقق من العملية" />
               </Field>
 
               {/* عنوان USDT للاستلام */}
-              <Field label={`عنوان محفظة ${recvItem?.coin || 'USDT'} ${recvItem?.network || ''} · للاستلام`}>
-                <input type="text" value={usdtAddress} onChange={e => setUsdtAddress(e.target.value)}
+              <Field label={`عنوان محفظة ${recvItem?.coin || 'USDT'} ${recvItem?.network || ''} · للاستلام`} error={usdtAddressErr}>
+                <input type="text" value={usdtAddress} onChange={e => { setUsdtAddress(e.target.value); setUsdtAddressErr('') }}
                   placeholder={`T... أو 0x... — عنوان ${recvItem?.network || 'USDT'}`}
-                  style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem' }}
+                  style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem', ...(usdtAddressErr ? inpErr : {}) }}
                   onFocus={focusOn} onBlur={focusOff} />
                 <Hint text={`⚠️ تأكد من أن العنوان صحيح على شبكة ${recvItem?.network || 'USDT'} — العناوين الخاطئة تؤدي لخسارة الأموال`} />
               </Field>
 
               {/* الموافقات */}
-              <CheckRow id="aml" checked={amlChecked} onChange={setAmlChecked}>
+              <CheckRow id="aml" checked={amlChecked} onChange={v => { setAmlChecked(v); if (v) setAmlErr('') }}>
                 أقر بأن الأموال مشروعة وأوافق على <span style={{ color: 'var(--cyan)' }}>سياسة AML</span>
               </CheckRow>
-              <CheckRow id="tos" checked={tosChecked} onChange={setTosChecked}>
+              {amlErr && <div style={{ ...errText, marginTop: -4, marginBottom: 6 }}>{amlErr}</div>}
+              <CheckRow id="tos" checked={tosChecked} onChange={v => { setTosChecked(v); if (v) setTosErr('') }}>
                 أوافق على <span style={{ color: 'var(--cyan)' }}>شروط الخدمة</span> و<span style={{ color: 'var(--cyan)' }}>سياسة الخصوصية</span>
               </CheckRow>
+              {tosErr && <div style={{ ...errText, marginTop: -4, marginBottom: 6 }}>{tosErr}</div>}
 
               {/* زر تواصل معنا */}
               <button onClick={handleContactUs} style={contactBtn}
@@ -448,17 +492,19 @@ function ExchangeForm() {
             ════════════════════════════════════ */
             <>
               {/* البريد الإلكتروني */}
-              <Field label="EMAIL · البريد الإلكتروني">
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="example@email.com" style={inp} onFocus={focusOn} onBlur={focusOff} />
+              <Field label="EMAIL · البريد الإلكتروني" error={emailErr}>
+                <input type="email" value={email} onChange={e => { setEmail(e.target.value); setEmailErr('') }}
+                  placeholder="example@email.com"
+                  style={{ ...inp, ...(emailErr ? inpErr : {}) }}
+                  onFocus={focusOn} onBlur={focusOff} />
               </Field>
 
               {/* رقم هاتف المرسل */}
               {sendIsWallet && sendItem && (
-                <Field label={`رقم هاتفك على ${sendItem.name}`}>
-                  <input type="tel" value={userPhone} onChange={e => setUserPhone(e.target.value)}
+                <Field label={`رقم هاتفك على ${sendItem.name}`} error={phoneErr}>
+                  <input type="tel" value={userPhone} onChange={e => { setUserPhone(e.target.value); setPhoneErr('') }}
                     placeholder="01XXXXXXXXX"
-                    style={{ ...inp, direction: 'ltr', textAlign: 'left' }}
+                    style={{ ...inp, direction: 'ltr', textAlign: 'left', ...(phoneErr ? inpErr : {}) }}
                     onFocus={focusOn} onBlur={focusOff} />
                   <Hint text="ℹ️ هذا الرقم للتحقق من هويتك فقط" />
                 </Field>
@@ -481,24 +527,26 @@ function ExchangeForm() {
                 recvType === 'crypto'
                   ? `عنوان محفظة ${recvItem?.coin || ''} ${recvItem?.network || ''} للاستلام`
                   : `معرّف ${recvItem?.name || ''} للاستلام`
-              }>
-                <input type="text" value={recipientId} onChange={e => setRecipientId(e.target.value)}
+              } error={recipientErr}>
+                <input type="text" value={recipientId} onChange={e => { setRecipientId(e.target.value); setRecipientErr('') }}
                   placeholder={
                     recvType === 'crypto'
                       ? `T... أو 0x... — عنوان ${recvItem?.network || ''}`
                       : recvItem?.placeholder || 'رقم أو معرّف الاستلام'
                   }
-                  style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem' }}
+                  style={{ ...inp, direction: 'ltr', textAlign: 'left', fontFamily: "'JetBrains Mono',monospace", fontSize: '0.8rem', ...(recipientErr ? inpErr : {}) }}
                   onFocus={focusOn} onBlur={focusOff} />
               </Field>
 
               {/* الموافقات */}
-              <CheckRow id="aml" checked={amlChecked} onChange={setAmlChecked}>
+              <CheckRow id="aml" checked={amlChecked} onChange={v => { setAmlChecked(v); if (v) setAmlErr('') }}>
                 أقر بأن الأموال مشروعة وأوافق على <span style={{ color: 'var(--cyan)' }}>سياسة AML</span>
               </CheckRow>
-              <CheckRow id="tos" checked={tosChecked} onChange={setTosChecked}>
+              {amlErr && <div style={{ ...errText, marginTop: -4, marginBottom: 6 }}>{amlErr}</div>}
+              <CheckRow id="tos" checked={tosChecked} onChange={v => { setTosChecked(v); if (v) setTosErr('') }}>
                 أوافق على <span style={{ color: 'var(--cyan)' }}>شروط الخدمة</span> و<span style={{ color: 'var(--cyan)' }}>سياسة الخصوصية</span>
               </CheckRow>
+              {tosErr && <div style={{ ...errText, marginTop: -4, marginBottom: 6 }}>{tosErr}</div>}
 
               {/* زر الإرسال */}
               <button onClick={handleSubmit} style={submitBtn}
@@ -603,13 +651,14 @@ function MethodPicker({ wallets, cryptos, selectedType, selectedItem, onSelect, 
 }
 
 // ── Sub-components ──────────────────────────────────────
-function Field({ label, children }) {
+function Field({ label, children, error }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 0.5, marginBottom: 5 }}>
         {label}
       </label>
       {children}
+      {error && <div style={errText}>{error}</div>}
     </div>
   )
 }
@@ -657,6 +706,8 @@ const pickerBtn = { display: 'flex', alignItems: 'center', gap: 6, padding: '8px
 const pickerDropdown = { position: 'absolute', left: 0, top: 'calc(100% + 6px)', minWidth: 220, zIndex: 50, background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 14, overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.45)', padding: '8px 0' }
 const pickerGroupLabel = { padding: '6px 14px', fontSize: '0.65rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1, fontWeight: 700 }
 const pickerItem = { width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', border: 'none', cursor: 'pointer', textAlign: 'right', fontFamily: "'Tajawal',sans-serif", transition: 'background 0.15s' }
-const spinner = { width: 28, height: 28, borderRadius: '50%', border: '3px solid var(--border-1)', borderTop: '3px solid var(--cyan)', animation: 'spin 0.8s linear infinite', margin: '0 auto' }
+const spinner  = { width: 28, height: 28, borderRadius: '50%', border: '3px solid var(--border-1)', borderTop: '3px solid var(--cyan)', animation: 'spin 0.8s linear infinite', margin: '0 auto' }
+const errText  = { marginTop: 4, fontSize: '0.72rem', color: '#f87171', fontFamily: "'JetBrains Mono',monospace" }
+const inpErr   = { borderColor: 'rgba(239,68,68,0.5)' }
 
 export default ExchangeForm
