@@ -10,16 +10,20 @@ const rateLimit  = require('express-rate-limit');
 require('dotenv').config();
 
 // ─── App ──────────────────────────────────────
-const app = express();  // ✅ لازم يكون أول شيء
+const app = express();
 
 app.set('trust proxy', 1);
 
-// ─── Middleware ───────────────────────────────
-app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true,
+// ─── CORS — يجب أن يكون أول شيء قبل كل شيء ──
+app.options('*', cors({ origin: '*', credentials: false }))
+app.use(cors({ origin: '*', credentials: false }))
+
+// ─── Helmet — بعد CORS وبدون crossOriginResourcePolicy ──
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy:   false,
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -43,7 +47,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/auth',   require('./routes/auth'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/public', require('./routes/public'));
-app.use('/api/wallet', require('./routes/wallet'));  // ✅ هنا المكان الصحيح
+app.use('/api/wallet', require('./routes/wallet'));
 
 // ─── Telegram Webhook ─────────────────────────
 app.post('/api/telegram/webhook', async (req, res) => {
@@ -55,12 +59,8 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
     const telegramService = require('./services/telegram');
 
-    // ── Parse action + id safely ──────────────────────────────
-    // callback_data format: "action_id"  (e.g. "approve_63f...", "dep-approve_63f...")
-    // Some callbacks have no id (e.g. "transfer-done") — handle gracefully
     const underscoreIndex = data.indexOf('_');
     if (underscoreIndex === -1) {
-      // Standalone action with no associated id — just acknowledge
       await telegramService.answerCallbackQuery(callbackQueryId, '✅ تم التسجيل');
       return res.json({ ok: true });
     }
@@ -68,14 +68,12 @@ app.post('/api/telegram/webhook', async (req, res) => {
     const action  = data.substring(0, underscoreIndex);
     const orderId = data.substring(underscoreIndex + 1);
 
-    // ─── معالجة طلبات إيداع المحفظة ──────────
     if (action === 'dep-approve' || action === 'dep-reject') {
       const Deposit     = require('./models/Deposit')
       const Wallet      = require('./models/Wallet')
       const Transaction = require('./models/Transaction')
       const mongoose    = require('mongoose')
 
-      // التحقق من صحة الـ ID قبل الاستعلام
       if (!mongoose.Types.ObjectId.isValid(orderId)) {
         console.error(`[Deposit Webhook] Invalid ObjectId: "${orderId}"`)
         await telegramService.answerCallbackQuery(callbackQueryId, '❌ معرّف طلب غير صالح')
@@ -127,7 +125,6 @@ app.post('/api/telegram/webhook', async (req, res) => {
           )
           await telegramService.editDepositMessage(cbMessage?.message_id, deposit, 'approved')
 
-          console.log(`[Deposit] Approved — depositId=${deposit._id}, user=${deposit.user?._id}, amount=${deposit.amount}`)
         } else {
           deposit.status      = 'rejected'
           deposit.processedAt = new Date()
@@ -135,12 +132,9 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
           await telegramService.answerCallbackQuery(callbackQueryId, '❌ تم رفض طلب الإيداع')
           await telegramService.editDepositMessage(cbMessage?.message_id, deposit, 'rejected')
-
-          console.log(`[Deposit] Rejected — depositId=${deposit._id}, user=${deposit.user?._id}`)
         }
       } catch (depErr) {
         console.error('[Deposit Webhook] Error:', depErr.message, depErr.stack)
-        // أجب على الـ callback حتى لا يتجمد الزر
         await telegramService.answerCallbackQuery(callbackQueryId, '⚠️ خطأ في معالجة الطلب، راجع السيرفر')
       }
 
@@ -148,14 +142,12 @@ app.post('/api/telegram/webhook', async (req, res) => {
     }
 
     const Order = require('./models/Order');
-
     const order = await Order.findById(orderId);
     if (!order) {
       await telegramService.answerCallbackQuery(callbackQueryId, '❌ الطلب غير موجود');
       return res.json({ ok: true });
     }
 
-    // ✅ منع تغيير الطلبات المكتملة أو المرفوضة
     const finalStatuses = ['completed', 'rejected', 'cancelled'];
     if (finalStatuses.includes(order.status)) {
       await telegramService.answerCallbackQuery(
@@ -194,9 +186,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 });
 
 // ─── Admin Routes ─────────────────────────────
-app.use('/api/admin', require('./routes/admin'))
-
-;
+app.use('/api/admin', require('./routes/admin'));
 
 // ─── Health Check ─────────────────────────────
 app.get('/', (req, res) => {
@@ -224,7 +214,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`🚀 Number1 Server running on port ${PORT}`);
 
-  // ── تسجيل Telegram Webhook تلقائياً عند البدء ──
   if (process.env.BACKEND_URL) {
     try {
       const telegramService = require('./services/telegram')
@@ -235,20 +224,20 @@ app.listen(PORT, async () => {
       if (token) {
         const webhookUrl = `${process.env.BACKEND_URL}/api/telegram/webhook`
         const axios = require('axios')
-        const res = await axios.post(
+        const result = await axios.post(
           `https://api.telegram.org/bot${token}/setWebhook`,
           { url: webhookUrl, drop_pending_updates: false }
         )
-        if (res.data.ok) {
+        if (result.data.ok) {
           console.log(`✅ Telegram Webhook registered: ${webhookUrl}`)
         } else {
-          console.warn('⚠️ Telegram Webhook registration failed:', res.data.description)
+          console.warn('⚠️ Telegram Webhook registration failed:', result.data.description)
         }
       }
     } catch (e) {
       console.warn('⚠️ Telegram Webhook auto-setup error:', e.message)
     }
   } else {
-    console.warn('⚠️ BACKEND_URL not set — Telegram Webhook not auto-registered. Set BACKEND_URL in .env')
+    console.warn('⚠️ BACKEND_URL not set — Telegram Webhook not auto-registered.')
   }
 });
