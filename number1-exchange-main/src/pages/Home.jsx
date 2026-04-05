@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom"
 import useLang from "../context/useLang"
 import { GooeyText } from "../components/ui/gooey-text-morphing"
 import { SEND_METHODS, RECEIVE_METHODS } from "../data/currencies"
-import FlowDots from "../components/shared/FlowDots"
 
 // ══ أيقونة العملة / المحفظة ══
 function CurrencyIcon({ method, size = 36 }) {
@@ -361,9 +360,22 @@ function MobileExchangeSelector({
         ))}
       </div>
 
-      {/* ── FlowDots separator ── */}
-      <div style={{ padding: "12px 0", display: "flex", justifyContent: "center" }}>
-        <FlowDots />
+      {/* ── swap arrows separator ── */}
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: 4, padding: "40px 6px 0",
+        flexShrink: 0,
+      }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="var(--cyan)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="17 1 21 5 17 9"/>
+          <path d="M3 11V9a4 4 0 014-4h14"/>
+        </svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 01-4 4H3"/>
+        </svg>
       </div>
 
       {/* ── RECV label + grid ── */}
