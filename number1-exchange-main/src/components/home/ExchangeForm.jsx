@@ -6,6 +6,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import ConfirmModal from './ConfirmModal'
 import useAuth from '../../context/useAuth'
+import FlowDots from '../shared/FlowDots'
 
 const API = import.meta.env.VITE_API_URL
 
@@ -318,13 +319,10 @@ function ExchangeForm() {
             </div>
           </div>
 
-          {/* ── سهم التبادل ─────────────────────── */}
+          {/* ── فاصل التبادل ────────────────────── */}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
             <div style={swapArrow}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 16V4m0 0L3 8m4-4l4 4"/>
-                <path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
-              </svg>
+              <FlowDots />
             </div>
           </div>
 

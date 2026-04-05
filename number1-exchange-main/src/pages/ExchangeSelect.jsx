@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SEND_METHODS, RECEIVE_METHODS } from '../data/currencies'
+import FlowDots from '../components/shared/FlowDots'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
@@ -228,10 +229,7 @@ export default function ExchangeSelect() {
             {/* ── فاصل ── */}
             <div className="es-divider-arrow">
               <div className="es-arrow-btn">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2.2" strokeLinecap="round">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
-                </svg>
+                <FlowDots />
               </div>
             </div>
 
@@ -268,7 +266,7 @@ export default function ExchangeSelect() {
             <div className="es-selection-pill">
               <MethodIcon method={sendMethod} size={22} />
               <span>{sendMethod.name}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              <FlowDots />
               <MethodIcon method={recvMethod} size={22} />
               <span>{recvMethod.name}</span>
             </div>

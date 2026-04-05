@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import useLang from '../context/useLang'
+import FlowDots from '../components/shared/FlowDots'
 import { SEND_METHODS, RECEIVE_METHODS } from '../data/currencies'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -286,7 +287,7 @@ export default function ExchangeFormPage() {
               <span className="ef-rate-loading" />
             ) : (
               <div style={{ textAlign: 'center' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                <FlowDots />
                 <div style={{ fontSize: '0.62rem', color: 'var(--gold)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4, whiteSpace: 'nowrap' }}>
                   1 {sendMethod.symbol} = {currentRate.toFixed(4)} {recvMethod.symbol}
                 </div>
