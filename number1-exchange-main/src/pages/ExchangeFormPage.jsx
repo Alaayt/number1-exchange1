@@ -27,15 +27,21 @@ function MethodIcon({ method, size = 32 }) {
 }
 
 // ── حساب السعر من الـ API ───────────────────────────────
+// ✅ الإصلاح 1: إضافة حالة wallet-recv بشكل صريح لضمان 1:1 دائماً
 function resolveRate(rates, sendId, recvId) {
   if (!rates) return 1
   const s = sendId || ''
   const r = recvId || ''
-  if (s === 'mgo-send')    return rates.moneygoRate   || 1
-  if (s === 'wallet-usdt') return 1  // المحفظة الداخلية → 1:1 دائماً
-  if (r === 'usdt-recv')   return rates.usdtBuyRate   || 1
+
+  // ─── المحفظة الداخلية دائماً 1:1 بدون أي سعر صرف ───
+  if (s === 'usdt-trc'    && r === 'wallet-recv') return 1   // USDT → محفظة داخلية
+  if (s === 'wallet-usdt' && r === 'usdt-recv')   return 1   // محفظة داخلية → USDT
+  if (s === 'wallet-usdt')                        return 1   // أي إرسال من محفظة داخلية
+
+  if (s === 'mgo-send')  return rates.moneygoRate  || 1
+  if (r === 'usdt-recv') return rates.usdtBuyRate  || 1
   if (r === 'mgo-recv') {
-    if (s === 'usdt-trc')  return rates.usdtBuyRate   || 1
+    if (s === 'usdt-trc') return rates.usdtBuyRate || 1
     return rates.vodafoneBuyRate || rates.usdtBuyRate || 1
   }
   return rates.usdtBuyRate || 1
@@ -87,9 +93,13 @@ export default function ExchangeFormPage() {
   const sendMethod = SEND_METHODS.find(m => m.id === fromId)   || null
   const recvMethod = RECEIVE_METHODS.find(m => m.id === toId)  || null
 
+  // ✅ الإصلاح 2: تحديد حالة المحفظة الداخلية بشكل واضح
+  const isWalletRecv     = toId === 'wallet-recv'
+  const isInternalWallet = fromId === 'usdt-trc' && toId === 'wallet-recv'  // USDT → محفظة داخلية
+
   // ── بيانات من الـ API ──────────────────────────────────
   const [rates,       setRates]      = useState(null)
-  const [adminItem,   setAdminItem]  = useState(null)  // وسيلة الدفع من الأدمن (رقم / عنوان)
+  const [adminItem,   setAdminItem]  = useState(null)
   const [apiLoading,  setApiLoading] = useState(true)
 
   useEffect(() => {
@@ -100,11 +110,10 @@ export default function ExchangeFormPage() {
     ]).then(([ratesRes, methodsRes]) => {
       if (ratesRes?.success)   setRates(ratesRes)
       if (methodsRes?.success) {
-        // نجد الوسيلة المناسبة من الأدمن
-        const isEgp = sendMethod?.type === 'egp'
+        const isEgp    = sendMethod?.type === 'egp'
         const isCrypto = sendMethod?.type === 'crypto'
         if (isEgp) {
-          const id = fromId
+          const id    = fromId
           const found = methodsRes.wallets?.find(w => (w.name || '').toLowerCase().includes(id))
           setAdminItem(found || methodsRes.wallets?.[0] || null)
         } else if (isCrypto && fromId !== 'mgo-send' && fromId !== 'wallet-usdt') {
@@ -116,8 +125,8 @@ export default function ExchangeFormPage() {
 
   // ── حالة النموذج ───────────────────────────────────────
   const [sendAmount,   setSendAmount]   = useState('')
-  const [recipientId,  setRecipientId]  = useState('')  // MoneyGo ID
-  const [usdtAddress,  setUsdtAddress]  = useState('')  // عنوان USDT للاستلام
+  const [recipientId,  setRecipientId]  = useState('')
+  const [usdtAddress,  setUsdtAddress]  = useState('')
   const [usdtNetwork,  setUsdtNetwork]  = useState('TRC20')
   const [email,        setEmail]        = useState(() => user?.email || '')
   const [userPhone,    setUserPhone]    = useState('')
@@ -130,21 +139,25 @@ export default function ExchangeFormPage() {
   const [loading,      setLoading]      = useState(false)
   const [error,        setError]        = useState('')
 
-  // ── تعبئة الإيميل تلقائياً من حساب المستخدم ──────────
+  // ── تعبئة الإيميل تلقائياً ──────────────────────────
   useEffect(() => {
     if (user?.email) setEmail(user.email)
   }, [user?.email])
 
   // ── حسابات ────────────────────────────────────────────
-  const currentRate   = resolveRate(rates, fromId, toId)
+  const currentRate = resolveRate(rates, fromId, toId)
+
+  // ✅ الإصلاح 3: حساب المبلغ المستلَم بشكل صحيح للمحفظة الداخلية
   const receiveAmount = useMemo(() => {
     const amt = parseFloat(sendAmount) || 0
-    return amt > 0 ? (amt * currentRate).toFixed(4) : ''
-  }, [sendAmount, currentRate])
+    if (amt <= 0) return ''
+    // المحفظة الداخلية USDT → USDT: نفس المبلغ بدون أي ضرب أو حساب
+    if (isInternalWallet) return amt.toFixed(4)
+    return (amt * currentRate).toFixed(4)
+  }, [sendAmount, currentRate, isInternalWallet])
 
   const isMoneyGoRecv  = toId === 'mgo-recv'
   const isUsdtRecv     = toId === 'usdt-recv'
-  const isWalletRecv   = toId === 'wallet-recv'
   const isUsdtSend     = fromId === 'usdt-trc'
   const isEgpSend      = sendMethod?.type === 'egp'
 
@@ -161,13 +174,13 @@ export default function ExchangeFormPage() {
   }, [isWalletRecv, user])
 
   // ── Validation ─────────────────────────────────────────
-  const emailOk   = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
-  const amountOk  = parseFloat(sendAmount) > 0
-  const mathOk    = mathInput.trim() === math.ans
-  const recipOk   = isMoneyGoRecv ? recipientId.trim().length >= 3
-                  : isUsdtRecv    ? usdtAddress.trim().length >= 10
-                  : isWalletRecv  ? walletId.length > 0
-                  : true
+  const emailOk  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)
+  const amountOk = parseFloat(sendAmount) > 0
+  const mathOk   = mathInput.trim() === math.ans
+  const recipOk  = isMoneyGoRecv ? recipientId.trim().length >= 3
+                 : isUsdtRecv    ? usdtAddress.trim().length >= 10
+                 : isWalletRecv  ? walletId.length > 0
+                 : true
 
   const canSubmit = amountOk && emailOk && recipOk && agreed && mathOk && !loading
 
@@ -191,22 +204,22 @@ export default function ExchangeFormPage() {
       let receiptImageUrl = ''
       if (receipt) {
         try {
-          const fd = new FormData()
+          const fd    = new FormData()
           fd.append('receipt', receipt)
           const token = localStorage.getItem('n1_token')
-          const up = await fetch(`${API}/api/orders/upload-receipt`, {
-            method: 'POST',
+          const up    = await fetch(`${API}/api/orders/upload-receipt`, {
+            method:  'POST',
             headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: fd,
+            body:    fd,
           })
           const upData = await up.json()
           if (upData.url) receiptImageUrl = upData.url
         } catch(e) { console.warn('receipt upload failed:', e.message) }
       }
 
-      // 2 — إرسال الطلب
+      // ✅ الإصلاح 4: المبلغ المرسل للـ backend صحيح الآن لأن receiveAmount أصبح صحيحاً
       const res = await fetch(`${API}/api/orders`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName:  email.split('@')[0],
@@ -223,18 +236,23 @@ export default function ExchangeFormPage() {
           },
           moneygo: {
             recipientName:  email.split('@')[0],
-            recipientPhone: isMoneyGoRecv ? recipientId : isUsdtRecv ? usdtAddress : isWalletRecv ? walletId : '',
-            amountUSD:      parseFloat(receiveAmount) || 0,
+            recipientPhone: isMoneyGoRecv ? recipientId
+                          : isUsdtRecv    ? usdtAddress
+                          : isWalletRecv  ? walletId
+                          : '',
+            // ✅ المبلغ المستلَم الآن صحيح: 10 USDT → 10 وليس 500
+            amountUSD: parseFloat(receiveAmount) || 0,
           },
           exchangeRate: {
+            // ✅ السعر المطبَّق صحيح: 1 للمحفظة الداخلية
             appliedRate:    currentRate,
             finalAmountUSD: parseFloat(receiveAmount) || 0,
           },
         }),
       })
+
       const data = await res.json()
       if (data.success && data.order) {
-        // ── حفظ الجلسة للتتبع لاحقاً ──────────
         if (data.order.sessionToken) {
           try {
             const sessionData = JSON.stringify({
@@ -318,18 +336,27 @@ export default function ExchangeFormPage() {
               <div className="ef-pair-name">{sendMethod.name}</div>
             </div>
           </div>
+
           <div className="ef-pair-arrow">
             {apiLoading ? (
               <span className="ef-rate-loading" />
             ) : (
               <div style={{ textAlign: 'center' }}>
                 <FlowDots />
-                <div style={{ fontSize: '0.62rem', color: 'var(--gold)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4, whiteSpace: 'nowrap' }}>
-                  1 {sendMethod.symbol} = {currentRate.toFixed(4)} {recvMethod.symbol}
-                </div>
+                {/* ✅ الإصلاح 5: إخفاء السعر للمحفظة الداخلية وعرض "إيداع مباشر" بدلاً منه */}
+                {isInternalWallet ? (
+                  <div style={{ fontSize: '0.62rem', color: 'var(--green)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4, whiteSpace: 'nowrap' }}>
+                    إيداع مباشر ١:١
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.62rem', color: 'var(--gold)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4, whiteSpace: 'nowrap' }}>
+                    1 {sendMethod.symbol} = {currentRate.toFixed(4)} {recvMethod.symbol}
+                  </div>
+                )}
               </div>
             )}
           </div>
+
           <div className="ef-pair-side ef-pair-side--right">
             <div style={{ textAlign: 'right' }}>
               <div className="ef-pair-label">تستلم</div>
@@ -356,10 +383,12 @@ export default function ExchangeFormPage() {
             </div>
           </div>
 
-          {/* المبلغ المستلَم (للقراءة فقط) */}
+          {/* ✅ المبلغ المستلَم الآن يعرض نفس المبلغ للمحفظة الداخلية */}
           {receiveAmount && (
             <div className="ef-receive-row">
-              <span style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>تستلم تقريباً</span>
+              <span style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>
+                {isInternalWallet ? 'سيُضاف لمحفظتك' : 'تستلم تقريباً'}
+              </span>
               <span style={{ color: 'var(--green)', fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", fontSize: '1.05rem' }}>
                 {receiveAmount} <span style={{ fontSize: '0.78rem' }}>{recvMethod.symbol}</span>
               </span>
@@ -408,10 +437,35 @@ export default function ExchangeFormPage() {
               </div>
 
               <div className="ef-warning">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><triangle/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <span>⚠ تأكد من اختيار الشبكة الصحيحة ({usdtNetwork}). الإرسال على شبكة خاطئة قد يؤدي إلى فقدان الأموال نهائياً.</span>
               </div>
             </>
+          )}
+
+          {/* ✅ المحفظة الداخلية: لا حاجة لأي إدخال — تُملأ تلقائياً */}
+          {isWalletRecv && (
+            <div className="ef-wallet-info">
+              <div className="ef-wallet-info-icon">🏦</div>
+              <div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-1)' }}>
+                  سيتم الإيداع في محفظتك الداخلية تلقائياً
+                </div>
+                {walletId ? (
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4 }}>
+                    رقم المحفظة: {walletId}
+                  </div>
+                ) : !user ? (
+                  <div style={{ fontSize: '0.72rem', color: 'var(--gold)', marginTop: 4 }}>
+                    ⚠ يجب تسجيل الدخول لاستخدام المحفظة الداخلية
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 4 }}>
+                    جاري تحميل بيانات المحفظة...
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
@@ -439,8 +493,6 @@ export default function ExchangeFormPage() {
               />
             </>
           )}
-
-
         </div>
 
         {/* ── رفع إيصال (للـ EGP) ── */}
@@ -541,8 +593,8 @@ const CSS = `
     border-bottom: 1px solid var(--border-1);
   }
   .ef-step { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; font-weight: 700; }
-  .ef-step--active { color: var(--cyan); }
-  .ef-step--done   { color: var(--green); }
+  .ef-step--active   { color: var(--cyan); }
+  .ef-step--done     { color: var(--green); }
   .ef-step--inactive { color: var(--text-3); }
   .ef-step-dot {
     width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
@@ -550,13 +602,9 @@ const CSS = `
     display: flex; align-items: center; justify-content: center;
     font-size: 0.72rem; font-weight: 700; color: var(--cyan);
   }
-  .ef-step-dot--done {
-    background: rgba(0,229,160,0.15); border-color: var(--green); color: var(--green);
-  }
-  .ef-step-dot--off {
-    background: transparent; border-color: var(--border-1); color: var(--text-3);
-  }
-  .ef-step-line { width: 32px; height: 2px; background: var(--border-1); margin: 0 8px; }
+  .ef-step-dot--done { background: rgba(0,229,160,0.15); border-color: var(--green); color: var(--green); }
+  .ef-step-dot--off  { background: transparent; border-color: var(--border-1); color: var(--text-3); }
+  .ef-step-line      { width: 32px; height: 2px; background: var(--border-1); margin: 0 8px; }
   .ef-step-line--done { background: var(--green); }
 
   .ef-content {
@@ -641,9 +689,7 @@ const CSS = `
     color: var(--text-2); font-family: 'JetBrains Mono',monospace;
     font-size: 0.82rem; font-weight: 700; transition: all 0.15s;
   }
-  .ef-net-btn--active {
-    border-color: var(--cyan); background: var(--cyan-dim); color: var(--cyan);
-  }
+  .ef-net-btn--active { border-color: var(--cyan); background: var(--cyan-dim); color: var(--cyan); }
 
   /* Warning */
   .ef-warning {
@@ -652,6 +698,14 @@ const CSS = `
     background: rgba(245,158,11,0.07); border: 1px dashed rgba(245,158,11,0.3);
     font-size: 0.76rem; color: var(--gold); line-height: 1.55;
   }
+
+  /* ✅ Wallet info box — للمحفظة الداخلية */
+  .ef-wallet-info {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px; border-radius: 10px;
+    background: rgba(0,229,160,0.06); border: 1px solid rgba(0,229,160,0.2);
+  }
+  .ef-wallet-info-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 1px; }
 
   /* Dropzone */
   .ef-dropzone {
@@ -663,14 +717,8 @@ const CSS = `
   .ef-dropzone:hover { border-color: var(--cyan); background: rgba(0,210,255,0.03); }
 
   /* Checkbox */
-  .ef-checkbox-row {
-    display: flex; align-items: flex-start; gap: 10px;
-    cursor: pointer;
-  }
-  .ef-checkbox {
-    width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px;
-    accent-color: var(--cyan); cursor: pointer;
-  }
+  .ef-checkbox-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .ef-checkbox { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--cyan); cursor: pointer; }
 
   /* Error */
   .ef-error {
@@ -690,10 +738,7 @@ const CSS = `
     box-shadow: 0 4px 20px rgba(0,159,192,0.28);
     transition: transform 0.18s, box-shadow 0.18s, opacity 0.18s;
   }
-  .ef-submit-btn:not(:disabled):hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 28px rgba(0,159,192,0.38);
-  }
+  .ef-submit-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(0,159,192,0.38); }
   .ef-submit-btn:disabled { cursor: not-allowed; }
   .ef-btn-spinner {
     display: inline-block; width: 15px; height: 15px; border-radius: 50%;
