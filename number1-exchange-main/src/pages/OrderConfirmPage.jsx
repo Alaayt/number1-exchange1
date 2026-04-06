@@ -8,13 +8,14 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 // ── STATUS config (for tracking section) ─────────────────
 const STATUS_CONFIG = {
-  pending:    { ar: 'في الانتظار',   color: '#f59e0b' },
-  verifying:  { ar: 'جاري التحقق',  color: '#a78bfa' },
-  verified:   { ar: 'تم التحقق',    color: '#60a5fa' },
-  processing: { ar: 'قيد المعالجة', color: '#00b8d9' },
-  completed:  { ar: 'مكتمل',        color: '#00e5a0' },
-  rejected:   { ar: 'مرفوض',        color: '#f43f5e' },
-  cancelled:  { ar: 'ملغي',         color: '#64748b' },
+  pending:     { ar: 'في الانتظار',         color: '#f59e0b', icon: '⏳' },
+  verifying:   { ar: 'جار التحقق من الدفع', color: '#a78bfa', icon: '🔍' },
+  verified:    { ar: 'تمت الموافقة',         color: '#60a5fa', icon: '✅' },
+  processing:  { ar: 'قيد المعالجة',         color: '#00b8d9', icon: '⚙️' },
+  money_ready: { ar: 'تم إرسال المبلغ',      color: '#f59e0b', icon: '💸' },
+  completed:   { ar: 'مكتمل',               color: '#00e5a0', icon: '🎉' },
+  rejected:    { ar: 'تم رفض العملية',       color: '#f43f5e', icon: '❌' },
+  cancelled:   { ar: 'تم إلغاء العملية',     color: '#64748b', icon: '🚫' },
 }
 
 // ─────────────────────────────────────────────────────────
@@ -36,10 +37,22 @@ export default function OrderConfirmPage() {
 
 // ─────────────────────────────────────────────────────────
 function ConfirmFlow({ orderData, navigate, lang }) {
-  // مراحل الصفحة: 'transfer' → 'tracking'
+  // مراحل الصفحة: 'transfer' → 'tracking' → 'completed'
   const [phase, setPhase]           = useState('transfer')
   const [orderNumber, setOrderNumber] = useState('')
   const [orderId,     setOrderId]     = useState('')
+  const [completedInfo, setCompletedInfo] = useState(null)
+
+  if (phase === 'completed') {
+    return (
+      <CompletedPage
+        orderData={orderData}
+        orderNumber={orderNumber}
+        completedInfo={completedInfo}
+        navigate={navigate}
+      />
+    )
+  }
 
   if (phase === 'tracking') {
     return (
@@ -49,6 +62,7 @@ function ConfirmFlow({ orderData, navigate, lang }) {
         orderData={orderData}
         navigate={navigate}
         lang={lang}
+        onCompleted={(info) => { setCompletedInfo(info); setPhase('completed') }}
       />
     )
   }
@@ -442,7 +456,7 @@ function TransferSection({ orderData, navigate, lang, onSuccess }) {
 // ═══════════════════════════════════════════════════════
 // TrackingSection — تتبع الطلب بعد الإرسال
 // ═══════════════════════════════════════════════════════
-function TrackingSection({ orderNumber, orderId, orderData, navigate, lang }) {
+function TrackingSection({ orderNumber, orderId, orderData, navigate, lang, onCompleted }) {
   const [status,     setStatus]     = useState('pending')
   const [orderInfo,  setOrderInfo]  = useState(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -457,8 +471,13 @@ function TrackingSection({ orderNumber, orderId, orderData, navigate, lang }) {
       const res  = await fetch(`${API}/api/orders/track/${orderNumber}`)
       const data = await res.json()
       if (data.success && data.order) {
-        setStatus(data.order.status)
+        const newStatus = data.order.status
+        setStatus(newStatus)
         setOrderInfo(data.order)
+        // الانتقال للصفحة الرابعة عند الاكتمال
+        if (newStatus === 'completed') {
+          setTimeout(() => onCompleted && onCompleted(data.order), 800)
+        }
       }
     } catch(e) { /* ignore */ }
     finally {
@@ -470,9 +489,141 @@ function TrackingSection({ orderNumber, orderId, orderData, navigate, lang }) {
   // جلب الحالة عند تحميل الصفحة
   useEffect(() => { fetchStatus() }, [])
 
+  // تحديث تلقائي كل 8 ثوانٍ عبر SSE أو polling
+  useEffect(() => {
+    if (!orderNumber) return
+    // محاولة الاتصال بـ SSE للتحديث الفوري
+    let es = null
+    try {
+      const session = JSON.parse(localStorage.getItem('n1_order_session') || '{}')
+      if (session.sessionToken) {
+        es = new EventSource(`${API}/api/orders/sse/${session.sessionToken}`)
+        es.onmessage = (e) => {
+          try {
+            const d = JSON.parse(e.data)
+            if (d.type === 'STATUS_UPDATE') {
+              setStatus(d.status)
+              setLastRefresh(new Date())
+              if (d.status === 'completed') {
+                fetchStatus() // جلب كامل البيانات ثم الانتقال
+              }
+            }
+          } catch (_) {}
+        }
+        es.onerror = () => { if (es) es.close(); es = null }
+      }
+    } catch (_) {}
+
+    // polling احتياطي كل 10 ثوانٍ
+    const poll = setInterval(fetchStatus, 10000)
+    return () => {
+      clearInterval(poll)
+      if (es) es.close()
+    }
+  }, [orderNumber])
+
   const isWalletDeposit  = orderData.receiveMethod?.id === 'wallet-recv'
   const isWalletTransfer = orderData.sendMethod?.id   === 'wallet-usdt'
   const isSpecial = isWalletDeposit || isWalletTransfer
+
+  // ── حالة الرفض ───────────────────────────────────────
+  if (status === 'rejected') {
+    return (
+      <div style={styles.page}>
+        <style>{pageCSS}</style>
+        <div style={styles.header}>
+          <button onClick={() => navigate('/')} style={styles.backBtn}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            الرئيسية
+          </button>
+          <div style={{ ...styles.headerTitle, color: '#f43f5e' }}>
+            <span>❌ تم رفض العملية</span>
+          </div>
+          <div style={{ width: 72 }} />
+        </div>
+
+        <div style={styles.content}>
+          <div style={styles.rejectedBanner}>
+            <div style={styles.rejectedIcon}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="22" fill="rgba(244,63,94,0.12)" stroke="#f43f5e" strokeWidth="2"/>
+                <line x1="15" y1="15" x2="33" y2="33" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round"/>
+                <line x1="33" y1="15" x2="15" y2="33" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.1rem', fontWeight: 800, color: '#f43f5e', marginBottom: 8 }}>
+                تم رفض العملية
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-2)', lineHeight: 1.7 }}>
+                نأسف، تم رفض طلبك من قِبل فريقنا.
+                <br />يرجى التواصل مع الدعم لمعرفة السبب.
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.summaryCard}>
+            <div style={styles.sectionLabel}>تفاصيل الطلب المرفوض</div>
+            <InfoRow label="رقم الطلب" value={orderNumber} mono valueColor="var(--text-3)" />
+            <InfoRow label="كنت ترسل"  value={`${orderData.sendAmount} ${orderData.sendMethod?.symbol || ''}`} valueColor="var(--red)" />
+            <InfoRow label="كنت تستلم" value={`${orderData.receiveAmount} ${orderData.receiveMethod?.symbol || ''}`} valueColor="var(--text-3)" />
+          </div>
+
+          <div style={{ ...styles.infoBoxGold, borderColor: 'rgba(244,63,94,0.25)', background: 'rgba(244,63,94,0.06)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span style={{ color: '#f43f5e' }}>
+              إذا كنت قد أرسلت المبلغ، تواصل مع الدعم فوراً لاسترداده.
+            </span>
+          </div>
+
+          <div style={styles.actionRow}>
+            <button onClick={() => navigate('/')} style={styles.cancelBtn}>
+              العودة للرئيسية
+            </button>
+            <a href="https://t.me/Number1Exchange" target="_blank" rel="noreferrer"
+               style={{ ...styles.confirmBtn, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#c84b6e,#9b1c3a)', flex: 2 }}>
+              📞 تواصل مع الدعم
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── حالة الإلغاء ──────────────────────────────────────
+  if (status === 'cancelled') {
+    return (
+      <div style={styles.page}>
+        <style>{pageCSS}</style>
+        <div style={styles.header}>
+          <button onClick={() => navigate('/')} style={styles.backBtn}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            الرئيسية
+          </button>
+          <div style={styles.headerTitle}><span>🚫 تم إلغاء العملية</span></div>
+          <div style={{ width: 72 }} />
+        </div>
+        <div style={styles.content}>
+          <div style={{ ...styles.rejectedBanner, borderColor: 'rgba(100,116,139,0.25)', background: 'rgba(100,116,139,0.06)' }}>
+            <div style={{ fontSize: '2.5rem' }}>🚫</div>
+            <div>
+              <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1rem', fontWeight: 800, color: '#64748b', marginBottom: 6 }}>
+                تم إلغاء العملية
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-2)', lineHeight: 1.7 }}>
+                تم إلغاء الطلب. يمكنك إنشاء طلب جديد في أي وقت.
+              </div>
+            </div>
+          </div>
+          <div style={styles.actionRow}>
+            <button onClick={() => navigate('/')} style={{ ...styles.confirmBtn, flex: 1 }}>
+              طلب جديد
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={styles.page}>
@@ -503,6 +654,11 @@ function TrackingSection({ orderNumber, orderId, orderData, navigate, lang }) {
         <div style={{ ...styles.progressStep, ...styles.progressActive }}>
           <div style={styles.progressDot}>2</div>
           <span>تتبع الطلب</span>
+        </div>
+        <div style={styles.progressLine} />
+        <div style={styles.progressStep}>
+          <div style={{ ...styles.progressDot, background: 'var(--border-2)', color: 'var(--text-3)' }}>3</div>
+          <span style={{ color: 'var(--text-3)' }}>مكتمل</span>
         </div>
       </div>
 
@@ -569,36 +725,79 @@ function TrackingSection({ orderNumber, orderId, orderData, navigate, lang }) {
                   <polyline points="23 4 23 10 17 10"/>
                   <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
                 </svg>
-                {refreshing ? 'يتحدث...' : 'تحديث الحالة'}
+                {refreshing ? 'يتحدث...' : 'تحديث'}
               </button>
             </div>
 
             {/* Status badge */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 8px ${cfg.color}77`, flexShrink: 0 }} />
-              <span style={{ fontSize: '1rem', fontWeight: 700, color: cfg.color }}>{cfg.ar}</span>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: cfg.color, boxShadow: `0 0 8px ${cfg.color}77`, flexShrink: 0, animation: ['pending','verifying','verified','processing'].includes(status) ? 'oc-pulse 1.5s ease-in-out infinite' : 'none' }} />
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: cfg.color }}>{cfg.icon} {cfg.ar}</span>
+            </div>
+
+            {/* مؤشر التقدم المرئي */}
+            <div style={styles.statusSteps}>
+              {[
+                { key: 'pending',    label: 'في الانتظار' },
+                { key: 'verified',   label: 'موافقة'      },
+                { key: 'completed',  label: 'مكتمل'       },
+              ].map((step, i) => {
+                const stepOrder = { pending: 0, verifying: 0, verified: 1, processing: 1, money_ready: 1, completed: 2, rejected: -1, cancelled: -1 }
+                const currentOrder = stepOrder[status] ?? 0
+                const isDone   = currentOrder > i
+                const isActive = currentOrder === i
+                return (
+                  <div key={step.key} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1
+                    }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: isDone ? 'rgba(0,229,160,0.2)' : isActive ? 'rgba(0,210,255,0.15)' : 'var(--border-1)',
+                        border: `1.5px solid ${isDone ? '#00e5a0' : isActive ? 'var(--cyan)' : 'var(--border-2)'}`,
+                        fontSize: '0.7rem', fontWeight: 700,
+                        color: isDone ? '#00e5a0' : isActive ? 'var(--cyan)' : 'var(--text-3)',
+                      }}>
+                        {isDone ? '✓' : i + 1}
+                      </div>
+                      <span style={{ fontSize: '0.62rem', color: isDone ? '#00e5a0' : isActive ? 'var(--cyan)' : 'var(--text-3)', fontWeight: 600 }}>
+                        {step.label}
+                      </span>
+                    </div>
+                    {i < 2 && (
+                      <div style={{ height: 2, flex: 1, background: isDone ? '#00e5a0' : 'var(--border-1)', margin: '0 4px', marginBottom: 20 }} />
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Timeline */}
             {orderInfo?.timeline?.length > 0 && (
               <div style={styles.timeline}>
-                {orderInfo.timeline.slice().reverse().map((t, i) => (
-                  <div key={i} style={styles.timelineItem}>
-                    <div style={styles.timelineDot} />
-                    <div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-1)' }}>{t.status}</div>
-                      {t.note && <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: 2 }}>{t.note}</div>}
-                      <div style={{ fontSize: '0.66rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 2 }}>
-                        {new Date(t.at).toLocaleString('ar-EG')}
+                {orderInfo.timeline.slice().reverse().map((t, i) => {
+                  const sCfg = STATUS_CONFIG[t.status] || {}
+                  return (
+                    <div key={i} style={styles.timelineItem}>
+                      <div style={{ ...styles.timelineDot, background: sCfg.color || 'var(--cyan)' }} />
+                      <div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: sCfg.color || 'var(--text-1)' }}>
+                          {sCfg.icon || ''} {sCfg.ar || t.status}
+                        </div>
+                        {t.note && <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: 2 }}>{t.note.replace(' via Telegram', '').replace('admin:telegram', 'الأدمن')}</div>}
+                        <div style={{ fontSize: '0.66rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 2 }}>
+                          {new Date(t.at).toLocaleString('ar-EG')}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: 10, fontFamily: "'JetBrains Mono',monospace" }}>
-              آخر تحديث: {lastRefresh.toLocaleTimeString('ar-EG')}
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 10, fontFamily: "'JetBrains Mono',monospace", display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00e5a0', animation: 'oc-pulse 2s ease-in-out infinite' }} />
+              تحديث تلقائي — آخر تحديث: {lastRefresh.toLocaleTimeString('ar-EG')}
             </div>
           </div>
         )}
@@ -610,6 +809,151 @@ function TrackingSection({ orderNumber, orderId, orderData, navigate, lang }) {
           </button>
           <button onClick={() => navigate('/')} style={styles.confirmBtn}>
             طلب جديد
+          </button>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════
+// CompletedPage — الصفحة الرابعة: إتمام الطلب 🎉
+// ═══════════════════════════════════════════════════════
+function CompletedPage({ orderData, orderNumber, completedInfo, navigate }) {
+  const [showConfetti, setShowConfetti] = useState(true)
+  useEffect(() => {
+    const t = setTimeout(() => setShowConfetti(false), 4000)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <div style={styles.page}>
+      <style>{pageCSS}</style>
+
+      {/* ── Confetti animation ── */}
+      {showConfetti && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 999, overflow: 'hidden' }}>
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div key={i} className="confetti-piece" style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 1.5}s`,
+              background: ['#00e5a0','#00d2ff','#f59e0b','#a78bfa','#f43f5e'][i % 5],
+            }} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Header ── */}
+      <div style={styles.header}>
+        <div style={{ width: 72 }} />
+        <div style={{ ...styles.headerTitle, color: 'var(--green)' }}>
+          <span>🎉 اكتملت العملية</span>
+        </div>
+        <div style={{ width: 72 }} />
+      </div>
+
+      {/* ── Progress (step 3 = completed) ── */}
+      <div style={styles.progressWrap}>
+        {['التحويل', 'تتبع الطلب', 'مكتمل'].map((label, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={styles.progressStep}>
+              <div style={{
+                ...styles.progressDot,
+                background: 'rgba(0,229,160,0.2)', color: '#00e5a0', border: '1.5px solid rgba(0,229,160,0.4)'
+              }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <span style={{ color: '#00e5a0', fontSize: '0.8rem', fontWeight: 700 }}>{label}</span>
+            </div>
+            {i < 2 && <div style={{ ...styles.progressLine, background: '#00e5a0', margin: '0 8px' }} />}
+          </div>
+        ))}
+      </div>
+
+      <div style={styles.content}>
+
+        {/* ── البانر الرئيسي ── */}
+        <div style={styles.completedBanner}>
+          <div style={{ marginBottom: 16 }}>
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+              <circle cx="36" cy="36" r="34" fill="rgba(0,229,160,0.1)" stroke="#00e5a0" strokeWidth="2"/>
+              <circle cx="36" cy="36" r="26" fill="rgba(0,229,160,0.08)" stroke="rgba(0,229,160,0.3)" strokeWidth="1"/>
+              <polyline points="20,36 30,46 52,24" fill="none" stroke="#00e5a0" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: '1.3rem', fontWeight: 900, color: '#00e5a0', marginBottom: 10, letterSpacing: 1 }}>
+            تمت العملية بنجاح!
+          </div>
+          <div style={{ fontSize: '0.88rem', color: 'var(--text-2)', lineHeight: 1.7, maxWidth: 300 }}>
+            تم تحويل مبلغك بنجاح. شكراً لثقتك في Number1 Exchange.
+          </div>
+        </div>
+
+        {/* ── تفاصيل العملية ── */}
+        <div style={styles.completedDetailsCard}>
+          <div style={styles.sectionLabel}>تفاصيل العملية المكتملة</div>
+
+          {orderNumber && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border-1)' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>رقم الطلب</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '0.9rem', fontWeight: 800, color: 'var(--cyan)', letterSpacing: 1.5 }}>
+                {orderNumber}
+              </span>
+            </div>
+          )}
+
+          <div style={styles.completedAmountRow}>
+            <div style={styles.completedAmountBox}>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>أرسلت</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#f43f5e', fontFamily: "'JetBrains Mono',monospace" }}>
+                {orderData.sendAmount}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 2 }}>
+                {orderData.sendMethod?.symbol || ''}
+              </div>
+            </div>
+            <div style={{ fontSize: '1.5rem', color: 'var(--text-3)' }}>→</div>
+            <div style={{ ...styles.completedAmountBox, background: 'rgba(0,229,160,0.08)', borderColor: 'rgba(0,229,160,0.25)' }}>
+              <div style={{ fontSize: '0.68rem', color: '#00e5a0', marginBottom: 6, fontFamily: "'JetBrains Mono',monospace" }}>استلمت</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#00e5a0', fontFamily: "'JetBrains Mono',monospace" }}>
+                {orderData.receiveAmount}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#00e5a0', marginTop: 2 }}>
+                {orderData.receiveMethod?.symbol || 'USD'}
+              </div>
+            </div>
+          </div>
+
+          {orderData.recipientId && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-1)' }}>
+              <InfoRow label="أُرسل إلى" value={orderData.recipientId} valueColor="var(--cyan)" mono />
+            </div>
+          )}
+
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00e5a0' }} />
+            <span style={{ fontSize: '0.78rem', color: '#00e5a0', fontWeight: 700 }}>
+              اكتمل بتاريخ: {new Date().toLocaleString('ar-EG')}
+            </span>
+          </div>
+        </div>
+
+        {/* ── إشعار للعميل ── */}
+        <div style={{ ...styles.infoBoxGold, borderColor: 'rgba(0,229,160,0.25)', background: 'rgba(0,229,160,0.06)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00e5a0" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><polyline points="20 6 9 17 4 12"/></svg>
+          <span style={{ color: '#00e5a0' }}>
+            تم اعتماد عمليتك وتحويل المبلغ. يمكنك التحقق من رصيدك الآن.
+          </span>
+        </div>
+
+        {/* ── أزرار ── */}
+        <div style={styles.actionRow}>
+          <button onClick={() => navigate('/track')} style={styles.cancelBtn}>
+            سجل طلباتي
+          </button>
+          <button onClick={() => navigate('/')} style={{ ...styles.confirmBtn, background: 'linear-gradient(135deg,#00e5a0,#00b87a)' }}>
+            🔄 طلب جديد
           </button>
         </div>
 
@@ -813,6 +1157,42 @@ const styles = {
     color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700,
     fontFamily: "'Cairo',sans-serif",
   },
+  rejectedBanner: {
+    display: 'flex', alignItems: 'center', gap: 18,
+    background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)',
+    borderRadius: 16, padding: '20px 18px',
+  },
+  rejectedIcon: { flexShrink: 0 },
+  infoBoxGold: {
+    display: 'flex', alignItems: 'flex-start', gap: 8,
+    background: 'rgba(245,158,11,0.06)',
+    border: '1px dashed rgba(245,158,11,0.25)',
+    borderRadius: 10, padding: '10px 14px',
+    fontSize: '0.82rem', color: 'var(--gold)', lineHeight: 1.55,
+  },
+  completedBanner: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    textAlign: 'center',
+    background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.18)',
+    borderRadius: 20, padding: '32px 24px',
+  },
+  completedDetailsCard: {
+    background: 'var(--card)', border: '1px solid var(--border-1)',
+    borderRadius: 16, padding: '18px 18px',
+  },
+  completedAmountRow: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 4,
+  },
+  completedAmountBox: {
+    flex: 1, textAlign: 'center',
+    background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)',
+    borderRadius: 12, padding: '14px 10px',
+  },
+  statusSteps: {
+    display: 'flex', alignItems: 'center',
+    marginBottom: 14, paddingBottom: 14,
+    borderBottom: '1px solid var(--border-1)',
+  },
   timeline: {
     display: 'flex', flexDirection: 'column', gap: 10,
     paddingTop: 10, borderTop: '1px solid var(--border-1)',
@@ -828,6 +1208,20 @@ const styles = {
 
 const pageCSS = `
   @keyframes oc-spin { to { transform: rotate(360deg) } }
+  @keyframes oc-pulse { 0%,100% { opacity:1; transform:scale(1) } 50% { opacity:0.6; transform:scale(1.3) } }
+  @keyframes confetti-fall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  .confetti-piece {
+    position: absolute;
+    top: -20px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    animation: confetti-fall 3s ease-in forwards;
+  }
 
   .oc-dropzone {
     border: 1.5px dashed var(--border-2);
