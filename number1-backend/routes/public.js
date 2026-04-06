@@ -14,19 +14,35 @@ router.get('/rates', async (req, res) => {
   try {
     const rates = await Rate.getSingleton();
 
-    // نرجع فقط ما يحتاجه المستخدم
+    // نرجع جميع الأسعار اللازمة للمستخدم
     res.json({
       success: true,
-      usdtBuyRate:     rates.usdtBuyRate,
-      usdtSellRate:    rates.usdtSellRate,
-      moneygoRate:     rates.moneygoRate,
+      // USDT ↔ EGP
+      usdtBuyRate:  rates.usdtBuyRate,
+      usdtSellRate: rates.usdtSellRate,
+      // MoneyGo ↔ EGP
+      moneygoEgpBuyRate:  rates.moneygoEgpBuyRate,
+      moneygoEgpSellRate: rates.moneygoEgpSellRate,
+      // MoneyGo ↔ USDT
+      moneygoRate: rates.moneygoRate,
+      // EGP Wallets (unified)
+      egpWalletBuyRate:  rates.egpWalletBuyRate,
+      egpWalletSellRate: rates.egpWalletSellRate,
+      // Internal USDT Wallet ↔ USDT
+      internalUsdtSellRate: rates.internalUsdtSellRate,
+      internalUsdtBuyRate:  rates.internalUsdtBuyRate,
+      // Internal USDT Wallet ↔ MoneyGo
+      internalUsdtToMoneyGoRate: rates.internalUsdtToMoneyGoRate,
+      moneyGoToInternalUsdtRate: rates.moneyGoToInternalUsdtRate,
+      // Legacy per-wallet rates (kept for backward compatibility)
       vodafoneBuyRate: rates.vodafoneBuyRate,
       instaPayRate:    rates.instaPayRate,
       fawryRate:       rates.fawryRate,
       orangeRate:      rates.orangeRate,
-      minOrderUsdt:    rates.minOrderUsdt,
-      maxOrderUsdt:    rates.maxOrderUsdt,
-      updatedAt:       rates.updatedAt,
+      // Limits
+      minOrderUsdt: rates.minOrderUsdt,
+      maxOrderUsdt: rates.maxOrderUsdt,
+      updatedAt:    rates.updatedAt,
     });
   } catch (error) {
     console.error('Public rates error:', error);

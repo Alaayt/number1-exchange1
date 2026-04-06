@@ -30,6 +30,24 @@ const rateSchema = new mongoose.Schema(
     // مثال: 1.002 يعني 1 MoneyGo = 1.002 USDT
     moneygoRate: { type: Number, default: 1.00 },
 
+    // ── المحفظة الداخلية (Internal USDT) ↔ USDT ─
+    // سعر بيع المحفظة الداخلية: العميل يرسل رصيد داخلي ويستلم USDT خارجي
+    // مثال: 0.99 يعني 1 رصيد داخلي → 0.99 USDT
+    internalUsdtSellRate: { type: Number, default: 1.00 },
+
+    // سعر شراء المحفظة الداخلية: العميل يرسل USDT خارجي ويستلم رصيد داخلي
+    // مثال: 1.01 يعني العميل يدفع 1.01 USDT ← يستلم 1 رصيد داخلي
+    internalUsdtBuyRate:  { type: Number, default: 1.00 },
+
+    // ── المحفظة الداخلية ↔ MoneyGo ────────────
+    // سعر تحويل المحفظة الداخلية إلى MoneyGo
+    // مثال: 1.00 يعني 1 رصيد داخلي → 1 MoneyGo
+    internalUsdtToMoneyGoRate: { type: Number, default: 1.00 },
+
+    // سعر تحويل MoneyGo إلى المحفظة الداخلية
+    // مثال: 1.00 يعني 1 MoneyGo → 1 رصيد داخلي
+    moneyGoToInternalUsdtRate: { type: Number, default: 1.00 },
+
     // ── سعر الجنيه الموحد للمحافظ الإلكترونية ─
     // يُطبق على: فودافون كاش / إنستا باي / فاوري / أورنج كاش
     // مثال: 50 يعني العميل يدفع 50 جنيه ليحصل على 1 USDT

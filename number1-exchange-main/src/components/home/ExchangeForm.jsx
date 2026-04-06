@@ -20,64 +20,52 @@ const MONEYGO_ITEM = {
 }
 
 // ══════════════════════════════════════════════
-// دالة مساعدة: تحديد السعر والعملية (÷ أم ×)
-//
-// المنطق:
-//   wallet → crypto : العميل يرسل جنيه ويستلم USDT
-//                     → نقسم المبلغ على السعر
-//                     مثال: 100 جنيه ÷ 50 = 2 USDT
-//
-//   crypto → wallet : العميل يرسل USDT ويستلم جنيه
-//                     → نضرب المبلغ في السعر
-//                     مثال: 2 USDT × 49.5 = 99 جنيه
-//
-//   moneygo → crypto: العميل يرسل MoneyGo ويستلم USDT
-//                     → نضرب المبلغ في السعر
-//                     مثال: 100 MGO × 1.002 = 100.2 USDT
+// تحويل نوع العملة من واجهة المستخدم إلى معرّف داخلي
+// wallet     → 'egp'
+// moneygo    → 'moneygo'
+// crypto     → 'usdt' أو 'internal_usdt' حسب item.id
 // ══════════════════════════════════════════════
-function resolveRate(rates, sendType, recvType, sendItem) {
-  if (!rates) return { rate: 50, divide: true }
-
-  // فودافون / إنستا / أورنج / فاوري → USDT
-  // العميل يرسل جنيه ويستلم USDT → نقسم على السعر
-  if (sendType === 'wallet' && recvType === 'crypto') {
-    const id = sendItem?.id || ''
-    let rate = rates.usdtBuyRate // افتراضي
-    if (id.includes('vodafone'))      rate = rates.vodafoneBuyRate
-    else if (id.includes('instapay')) rate = rates.instaPayRate
-    else if (id.includes('fawry'))    rate = rates.fawryRate
-    else if (id.includes('orange'))   rate = rates.orangeRate
-    return { rate, divide: true }
+function normalizeCurrency(type, item) {
+  if (type === 'moneygo') return 'moneygo'
+  if (type === 'wallet')  return 'egp'
+  if (type === 'crypto') {
+    if ((item?.id || '') === 'internal_usdt') return 'internal_usdt'
+    return 'usdt'
   }
-
-  // USDT → فودافون / إنستا / أورنج
-  // العميل يرسل USDT ويستلم جنيه → نضرب في السعر
-  if (sendType === 'crypto' && recvType === 'wallet') {
-    return { rate: rates.usdtSellRate, divide: false }
-  }
-
-  // MoneyGo → USDT
-  // العميل يرسل MoneyGo ويستلم USDT → نضرب في السعر
-if (sendType === 'moneygo') {
-  // moneygoRate = كم USDT يكافئ 1 MoneyGo
-  // مثال: moneygoRate=2 → 10 MoneyGo × 2 = 20 USDT
-  const mRate = parseFloat(rates.moneygoRate)
-  if (!mRate || mRate <= 0) return { rate: 1, divide: false } // fallback آمن
-  return { rate: mRate, divide: false }
+  return 'usdt'
 }
 
-  // USDT → USDT
-  if (sendType === 'crypto' && recvType === 'crypto') {
-    return { rate: 1, divide: false }
-  }
+// ══════════════════════════════════════════════
+// جدول الأسعار الصريح: (from → to)
+// كل زوج يستخدم حقل سعر مستقل تماماً
+// ❌ لا استخدام ديناميكي للمفاتيح
+// ══════════════════════════════════════════════
+function getRate(from, to, rates) {
+  if (!rates) return null
+  if (from === 'usdt'          && to === 'egp')           return { rate: rates.usdtSellRate,              divide: false }
+  if (from === 'egp'           && to === 'usdt')          return { rate: rates.usdtBuyRate,               divide: true  }
+  if (from === 'moneygo'       && to === 'egp')           return { rate: rates.moneygoEgpSellRate,        divide: false }
+  if (from === 'egp'           && to === 'moneygo')       return { rate: rates.moneygoEgpBuyRate,         divide: true  }
+  if (from === 'moneygo'       && to === 'usdt')          return { rate: rates.moneygoRate,               divide: false }
+  if (from === 'internal_usdt' && to === 'usdt')          return { rate: rates.internalUsdtSellRate,      divide: false }
+  if (from === 'usdt'          && to === 'internal_usdt') return { rate: rates.internalUsdtBuyRate,       divide: true  }
+  if (from === 'internal_usdt' && to === 'moneygo')       return { rate: rates.internalUsdtToMoneyGoRate, divide: false }
+  if (from === 'moneygo'       && to === 'internal_usdt') return { rate: rates.moneyGoToInternalUsdtRate, divide: false }
+  if (from === to)                                        return { rate: 1,                               divide: false }
+  return null
+}
 
-  // محفظة → محفظة
-  if (sendType === 'wallet' && recvType === 'wallet') {
-    return { rate: 1, divide: false }
-  }
-
-  // افتراضي
-  return { rate: rates.usdtBuyRate, divide: true }
+// ══════════════════════════════════════════════
+// resolveRate: يحدد السعر بناءً على الزوج (إرسال → استلام)
+// divide = true  → نقسم (مثال: 100 جنيه ÷ 50 = 2 USDT)
+// divide = false → نضرب (مثال: 2 USDT × 49.5 = 99 جنيه)
+// ══════════════════════════════════════════════
+function resolveRate(rates, sendType, recvType, sendItem, recvItem) {
+  if (!rates) return { rate: 50, divide: true }
+  const from   = normalizeCurrency(sendType, sendItem)
+  const to     = normalizeCurrency(recvType, recvItem)
+  const result = getRate(from, to, rates)
+  return result ?? { rate: rates.usdtBuyRate || 50, divide: true }
 }
 
 function ExchangeForm() {
@@ -194,7 +182,7 @@ function ExchangeForm() {
   // ══════════════════════════════════════════════════
   // السعر الحقيقي — مصحح بالكامل
   // ══════════════════════════════════════════════════
-  const { rate: baseRate, divide } = resolveRate(rates, sendType, recvType, sendItem)
+  const { rate: baseRate, divide } = resolveRate(rates, sendType, recvType, sendItem, recvItem)
   const currentRate = baseRate * rateFactor
   const rateColor   = rateDir === 'up' ? 'var(--green)' : rateDir === 'dn' ? 'var(--red)' : 'var(--gold)'
 

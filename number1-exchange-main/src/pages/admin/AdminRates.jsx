@@ -72,6 +72,46 @@ const RATE_SECTIONS = [
     ]
   },
   {
+    id: "internal_usdt_usdt",
+    title: "المحفظة الداخلية ↔ USDT (TRC20)",
+    subtitle: "أسعار التحويل بين الرصيد الداخلي والـ USDT الخارجي",
+    color: "#0891b2",
+    icon: "🏦",
+    pairs: [
+      {
+        buyKey:  "internalUsdtBuyRate",
+        sellKey: "internalUsdtSellRate",
+        label:   "USDT خارجي / رصيد داخلي",
+        buyDesc:  "العميل يرسل USDT خارجي ويستلم رصيداً داخلياً — (كم USDT خارجي = 1 رصيد داخلي)",
+        sellDesc: "العميل يرسل رصيداً داخلياً ويستلم USDT خارجي — (كم USDT يحصل عليه لكل 1 رصيد داخلي)",
+        buyExample:  "مثال: 1.01 يعني العميل يدفع 1.01 USDT ← يستلم 1 رصيد داخلي",
+        sellExample: "مثال: 0.99 يعني العميل يرسل 1 رصيد داخلي ← يستلم 0.99 USDT",
+        buyUnit:  "USDT / داخلي",
+        sellUnit: "USDT / داخلي",
+      }
+    ]
+  },
+  {
+    id: "internal_usdt_moneygo",
+    title: "المحفظة الداخلية ↔ MoneyGo",
+    subtitle: "أسعار التحويل بين الرصيد الداخلي و MoneyGo",
+    color: "#b45309",
+    icon: "🔁",
+    pairs: [
+      {
+        buyKey:  "moneyGoToInternalUsdtRate",
+        sellKey: "internalUsdtToMoneyGoRate",
+        label:   "MoneyGo / رصيد داخلي",
+        buyDesc:  "العميل يرسل MoneyGo ويستلم رصيداً داخلياً — (كم رصيد داخلي لكل 1 MoneyGo)",
+        sellDesc: "العميل يرسل رصيداً داخلياً ويستلم MoneyGo — (كم MoneyGo لكل 1 رصيد داخلي)",
+        buyExample:  "مثال: 1.00 يعني العميل يرسل 1 MoneyGo ← يستلم 1 رصيد داخلي",
+        sellExample: "مثال: 1.00 يعني العميل يرسل 1 رصيد داخلي ← يستلم 1 MoneyGo",
+        buyUnit:  "داخلي / MGO",
+        sellUnit: "MGO / داخلي",
+      }
+    ]
+  },
+  {
     id: "egp_wallets",
     title: "المحافظ الإلكترونية المصرية",
     subtitle: "سعر موحد لـ فودافون كاش / إنستا باي / فاوري / أورنج كاش",

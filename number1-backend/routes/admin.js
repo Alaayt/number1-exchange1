@@ -288,12 +288,23 @@ router.get('/rates', async (req, res) => {
 router.put('/rates', async (req, res) => {
   try {
     const allowed = [
-  'usdtBuyRate', 'usdtSellRate',
-  'moneygoRate', 'moneygoEgpBuyRate', 'moneygoEgpSellRate',
-  'egpWalletBuyRate', 'egpWalletSellRate',
-  'vodafoneBuyRate', 'instaPayRate', 'fawryRate', 'orangeRate',
-  'minOrderUsdt', 'maxOrderUsdt',
-];
+      // USDT ↔ EGP
+      'usdtBuyRate', 'usdtSellRate',
+      // MoneyGo ↔ EGP
+      'moneygoEgpBuyRate', 'moneygoEgpSellRate',
+      // MoneyGo ↔ USDT
+      'moneygoRate',
+      // EGP Wallets (unified)
+      'egpWalletBuyRate', 'egpWalletSellRate',
+      // Internal USDT Wallet ↔ USDT
+      'internalUsdtSellRate', 'internalUsdtBuyRate',
+      // Internal USDT Wallet ↔ MoneyGo
+      'internalUsdtToMoneyGoRate', 'moneyGoToInternalUsdtRate',
+      // Legacy per-wallet rates
+      'vodafoneBuyRate', 'instaPayRate', 'fawryRate', 'orangeRate',
+      // Limits
+      'minOrderUsdt', 'maxOrderUsdt',
+    ];
     const updates = {};
     allowed.forEach(key => {
       if (req.body[key] !== undefined && req.body[key] !== '') updates[key] = parseFloat(req.body[key]);
