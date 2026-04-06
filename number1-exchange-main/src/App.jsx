@@ -98,9 +98,13 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 // ── Return to Active Order Banner ──────────────────────────────
 function ReturnToOrderBanner() {
-  const [session, setSession] = useState(null)
-  const [visible, setVisible] = useState(false)
+  const [session,  setSession]  = useState(null)
+  const [visible,  setVisible]  = useState(false)
   const [timeLeft, setTimeLeft] = useState(0)
+  const location = useLocation()
+
+  // لا تُظهر البنر إذا المستخدم موجود بالفعل في صفحة تتبع الطلب
+  const isOnOrderPage = location.pathname.startsWith('/exchange/order') || location.pathname === '/track'
 
   useEffect(() => {
     const sess = readOrderSession()
@@ -110,6 +114,20 @@ function ReturnToOrderBanner() {
       setVisible(true)
     }
   }, [])
+
+  // إعادة التحقق عند تغيير الصفحة
+  useEffect(() => {
+    if (isOnOrderPage) return
+    const sess = readOrderSession()
+    if (sess && getTimeRemaining(sess.expiresAt) > 0) {
+      setSession(sess)
+      setTimeLeft(getTimeRemaining(sess.expiresAt))
+      setVisible(true)
+    } else {
+      setVisible(false)
+      setSession(null)
+    }
+  }, [location.pathname, isOnOrderPage])
 
   useEffect(() => {
     if (!session) return
@@ -121,7 +139,7 @@ function ReturnToOrderBanner() {
     return () => clearInterval(id)
   }, [session])
 
-  if (!visible || !session) return null
+  if (!visible || !session || isOnOrderPage) return null
 
   const mins = Math.floor(timeLeft / 60)
   const secs = timeLeft % 60

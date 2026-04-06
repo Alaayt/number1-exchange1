@@ -149,6 +149,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
     }
 
     const finalStatuses = ['completed', 'rejected', 'cancelled'];
+    // money_ready يمكن فقط تحويله لـ completed عبر زر إتمام الطلب
     if (finalStatuses.includes(order.status)) {
       await telegramService.answerCallbackQuery(
         callbackQueryId,
@@ -156,11 +157,17 @@ app.post('/api/telegram/webhook', async (req, res) => {
       );
       return res.json({ ok: true });
     }
+    // منع إعادة ضغط money_ready إذا هو بالفعل money_ready
+    if (order.status === 'money_ready' && action === 'money_ready') {
+      await telegramService.answerCallbackQuery(callbackQueryId, '⚠️ تم إرسال إشعار الفلوس مسبقاً');
+      return res.json({ ok: true });
+    }
 
     const statusMap = {
-      approve:  { status: 'verified',  msg: '✅ تمت الموافقة — جاري المراجعة' },
-      reject:   { status: 'rejected',  msg: '❌ تم رفض الطلب'                 },
-      complete: { status: 'completed', msg: '🎉 تم إتمام الطلب بنجاح'          },
+      approve:     { status: 'verified',    msg: '✅ تمت الموافقة — جاري المراجعة'              },
+      reject:      { status: 'rejected',    msg: '❌ تم رفض الطلب'                              },
+      money_ready: { status: 'money_ready', msg: '💸 تم إرسال الفلوس — ينتظر تأكيد العميل'    },
+      complete:    { status: 'completed',   msg: '🎉 تم إتمام الطلب بنجاح'                      },
     };
 
     const action_data = statusMap[action];
@@ -169,8 +176,9 @@ app.post('/api/telegram/webhook', async (req, res) => {
     order.status = action_data.status;
     order.addTimeline(action_data.status, `${action_data.msg} via Telegram`, 'admin:telegram');
 
-    if (action_data.status === 'completed') order.moneygo.transferStatus = 'sent';
-    if (action_data.status === 'rejected')  order.moneygo.transferStatus = 'failed';
+    if (action_data.status === 'money_ready') order.moneygo.transferStatus = 'pending_confirmation';
+    if (action_data.status === 'completed')   order.moneygo.transferStatus = 'sent';
+    if (action_data.status === 'rejected')    order.moneygo.transferStatus = 'failed';
 
     await order.save();
 

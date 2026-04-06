@@ -85,11 +85,12 @@ ${recipientLabel}: <code>${order.moneygo.recipientPhone || '—'}</code>
 
   const inline_keyboard = [
     [
-      { text: '✅ موافقة',      callback_data: `approve_${order._id}`  },
-      { text: '❌ رفض',         callback_data: `reject_${order._id}`   },
+      { text: '✅ موافقة — بدء التحقق', callback_data: `approve_${order._id}`      },
+      { text: '❌ رفض',                  callback_data: `reject_${order._id}`        },
     ],
     [
-      { text: '🎉 إتمام الطلب', callback_data: `complete_${order._id}` },
+      { text: '💸 أرسلت الفلوس للعميل', callback_data: `money_ready_${order._id}`  },
+      { text: '🎉 إتمام الطلب',          callback_data: `complete_${order._id}`     },
     ]
   ]
 
@@ -99,11 +100,12 @@ ${recipientLabel}: <code>${order.moneygo.recipientPhone || '—'}</code>
 // ─── إشعار تحديث حالة الطلب ──────────────────
 exports.notifyOrderUpdate = async (order, newStatus, note = '') => {
   const statusText = {
-    verified:   '✅ تم التحقق من الدفع',
-    processing: '⚙️ جاري المعالجة',
-    completed:  '🎉 مكتمل — تم التحويل',
-    rejected:   '❌ مرفوض',
-    cancelled:  '🚫 ملغي'
+    verified:    '✅ تم التحقق من الدفع',
+    processing:  '⚙️ جاري المعالجة',
+    money_ready: '💸 تم إرسال الفلوس للعميل — ينتظر تأكيده',
+    completed:   '🎉 مكتمل — تم التحويل',
+    rejected:    '❌ مرفوض',
+    cancelled:   '🚫 ملغي'
   }
 
   const text = `
@@ -217,10 +219,11 @@ exports.editMessage = async (messageId, newText) => {
 exports.editOrderMessage = async (messageId, order, action) => {
   if (!messageId) return
   const stamps = {
-    approve:  '✅ <b>تمت الموافقة</b> — الطلب قيد المراجعة',
-    reject:   '❌ <b>تم الرفض</b> — تم إخطار العميل',
-    complete: '🎉 <b>تم إتمام الطلب</b> — اكتملت العملية بنجاح',
-    cancel:   '🚫 <b>تم الإلغاء من العميل</b>',
+    approve:     '✅ <b>تمت الموافقة</b> — الطلب قيد المراجعة',
+    reject:      '❌ <b>تم الرفض</b> — تم إخطار العميل',
+    money_ready: '💸 <b>تم إرسال الفلوس للعميل</b> — ينتظر تأكيد الاستلام',
+    complete:    '🎉 <b>تم إتمام الطلب</b> — اكتملت العملية بنجاح',
+    cancel:      '🚫 <b>تم الإلغاء من العميل</b>',
   }
   const stamp  = stamps[action] || `🔄 ${action}`
   const method = (order.payment?.method || '').replace(/_/g, ' ')

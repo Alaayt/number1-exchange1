@@ -110,6 +110,7 @@ const orderSchema = new mongoose.Schema({
       'verifying',    // ← جاري التحقق من الدفع
       'verified',     // ← تم التحقق
       'processing',   // ← جاري معالجة MoneyGo
+      'money_ready',  // ← المدير أرسل الفلوس، ينتظر تأكيد العميل
       'completed',    // ← مكتمل
       'rejected',     // ← مرفوض
       'cancelled'     // ← ملغي

@@ -2,13 +2,14 @@
 // Shared constants for all admin pages
 
 export const STATUS_CONFIG = {
-  pending:    { label: 'انتظار',     color: '#d97706', bg: '#451a03' },
-  verifying:  { label: 'تحقق',      color: '#7c3aed', bg: '#3b1f6e' },
-  verified:   { label: 'تم التحقق', color: '#2563eb', bg: '#1e3a5f' },
-  processing: { label: 'معالجة',    color: '#0891b2', bg: '#0c3547' },
-  completed:  { label: 'مكتمل',     color: '#059669', bg: '#064e3b' },
-  rejected:   { label: 'مرفوض',    color: '#f85149', bg: '#3d0a0a' },
-  cancelled:  { label: 'ملغي',      color: '#6e7681', bg: '#21262d' },
+  pending:     { label: 'انتظار',          color: '#d97706', bg: '#451a03' },
+  verifying:   { label: 'تحقق',            color: '#7c3aed', bg: '#3b1f6e' },
+  verified:    { label: 'تم التحقق',       color: '#2563eb', bg: '#1e3a5f' },
+  processing:  { label: 'معالجة',          color: '#0891b2', bg: '#0c3547' },
+  money_ready: { label: '💸 جاهز للاستلام', color: '#a78bfa', bg: '#2e1a6e' },
+  completed:   { label: 'مكتمل',           color: '#059669', bg: '#064e3b' },
+  rejected:    { label: 'مرفوض',           color: '#f85149', bg: '#3d0a0a' },
+  cancelled:   { label: 'ملغي',            color: '#6e7681', bg: '#21262d' },
 }
 
 // Shared crypto network presets (used in AdminWallets + AdminPaymentMethods)

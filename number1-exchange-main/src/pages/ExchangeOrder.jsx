@@ -9,25 +9,29 @@ const API            = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const ORDER_LIFETIME = 30 * 60   // 30 دقيقة
 
 const DONE_STATUSES     = ['completed', 'rejected', 'cancelled']
-const APPROVED_STATUSES = ['verified', 'processing', 'completed']
+const APPROVED_STATUSES = ['verified', 'processing', 'money_ready', 'completed']
 
 // ── خريطة الحالات ──────────────────────────────────────
 const STATUS_MAP = {
-  pending:    { ar: 'في انتظار التأكيد', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  dot: '#f59e0b' },
-  verifying:  { ar: 'جاري التحقق',       color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  dot: '#60a5fa' },
-  verified:   { ar: 'تم التحقق ✓',       color: '#34d399', bg: 'rgba(52,211,153,0.1)',  dot: '#34d399' },
-  processing: { ar: 'جاري المعالجة',     color: '#00d4ff', bg: 'rgba(0,210,255,0.08)',  dot: '#00d4ff' },
-  completed:  { ar: 'مكتمل 🎉',          color: '#00e5a0', bg: 'rgba(0,229,160,0.1)',   dot: '#00e5a0' },
-  rejected:   { ar: 'مرفوض',             color: '#f87171', bg: 'rgba(239,68,68,0.1)',   dot: '#f87171' },
-  cancelled:  { ar: 'ملغي',              color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', dot: '#9ca3af' },
+  pending:              { ar: 'في انتظار التأكيد',   color: '#f59e0b', bg: 'rgba(245,158,11,0.1)',  dot: '#f59e0b' },
+  verifying:            { ar: 'جاري التحقق',          color: '#60a5fa', bg: 'rgba(96,165,250,0.1)',  dot: '#60a5fa' },
+  verified:             { ar: 'تم التحقق ✓',          color: '#34d399', bg: 'rgba(52,211,153,0.1)',  dot: '#34d399' },
+  processing:           { ar: 'جاري المعالجة',        color: '#00d4ff', bg: 'rgba(0,210,255,0.08)',  dot: '#00d4ff' },
+  money_ready:          { ar: 'جاهز للاستلام 💸',     color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', dot: '#a78bfa' },
+  completed:            { ar: 'مكتمل 🎉',             color: '#00e5a0', bg: 'rgba(0,229,160,0.1)',   dot: '#00e5a0' },
+  rejected:             { ar: 'مرفوض ❌',             color: '#f87171', bg: 'rgba(239,68,68,0.1)',   dot: '#f87171' },
+  cancelled:            { ar: 'ملغي',                 color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', dot: '#9ca3af' },
 }
+
+// حالات "وصل الفلوس للعميل جاهز يتأكد"
+const MONEY_READY_STATUSES = ['money_ready']
 
 // ── الخطوة التي يجب أن تكون نشطة ────────────────────
 function getActiveWizardStep(status) {
-  if (status === 'completed')                          return 4
-  if (['verified','processing'].includes(status))      return 3
-  if (['verifying'].includes(status))                  return 3
-  if (status === 'pending')                            return 3
+  if (status === 'completed')                                    return 4
+  if (['verified','processing','money_ready'].includes(status)) return 3
+  if (['verifying'].includes(status))                           return 3
+  if (status === 'pending')                                     return 3
   return 3
 }
 
@@ -248,8 +252,35 @@ export default function ExchangeOrder() {
   const isRejected     = currentStatus === 'rejected'
   const isCancelled    = currentStatus === 'cancelled'
   const isApproved     = APPROVED_STATUSES.includes(currentStatus)
+  const isMoneyReady   = currentStatus === 'money_ready'
   const canCancel      = ['pending', 'verifying'].includes(currentStatus)
   const wizardStep     = isCompleted ? 4 : 3
+
+  // ── تأكيد استلام المبلغ (الخطوة 4) ─────────────────────
+  const [confirmingRecv, setConfirmingRecv] = useState(false)
+  const confirmReceived = useCallback(async () => {
+    if (confirmingRecv) return
+    setConfirmingRecv(true)
+    try {
+      const sess = readOrderSession()
+      const res  = await fetch(`${API}/api/orders/${orderId}/confirm-received`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ sessionToken: sess?.sessionToken }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setOrder(prev => prev ? { ...prev, status: 'completed' } : prev)
+        clearOrderSession()
+      } else {
+        alert(data.message || 'حدث خطأ، حاول مرة أخرى')
+      }
+    } catch {
+      alert('خطأ في الاتصال، حاول مرة أخرى')
+    } finally {
+      setConfirmingRecv(false)
+    }
+  }, [orderId, confirmingRecv])
 
   // ── Fetch order ─────────────────────────────────────────
   const fetchOrder = useCallback(async () => {
@@ -427,7 +458,7 @@ export default function ExchangeOrder() {
           </div>
 
           {/* إشعار الموافقة */}
-          {isApproved && !isCompleted && (
+          {isApproved && !isCompleted && !isMoneyReady && (
             <div className="eo-approved-banner">
               <div style={{ width:32, height:32, borderRadius:'50%', background:'rgba(52,211,153,0.15)', border:'2px solid #34d399', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -436,6 +467,28 @@ export default function ExchangeOrder() {
                 <div style={{ fontSize:'0.9rem', fontWeight:800, color:'#34d399' }}>تمت الموافقة على طلبك ✅</div>
                 <div style={{ fontSize:'0.72rem', color:'var(--text-3)', marginTop:2 }}>جارٍ معالجة التحويل الآن، ستنتقل لشاشة الاكتمال تلقائياً</div>
               </div>
+            </div>
+          )}
+
+          {/* 💸 إشعار "المدير أرسل الفلوس" — زر إتمام الطلب */}
+          {isMoneyReady && (
+            <div className="eo-money-ready-banner">
+              <div style={{ fontSize:'2rem', marginBottom:6 }}>💸</div>
+              <div style={{ fontFamily:"'Tajawal',sans-serif", fontWeight:800, color:'#a78bfa', fontSize:'1rem', marginBottom:4 }}>
+                تم إرسال المبلغ إليك!
+              </div>
+              <div style={{ fontSize:'0.82rem', color:'var(--text-3)', fontFamily:"'Tajawal',sans-serif", marginBottom:14, lineHeight:1.6 }}>
+                قام فريقنا بإرسال المبلغ إلى حسابك. بعد التأكد من الاستلام اضغط الزر أدناه.
+              </div>
+              <button
+                onClick={confirmReceived}
+                disabled={confirmingRecv}
+                className="eo-confirm-recv-btn"
+              >
+                {confirmingRecv
+                  ? <><span className="eo-btn-spin" /> جاري التأكيد...</>
+                  : <>✅ تأكيد استلام المبلغ</>}
+              </button>
             </div>
           )}
 
@@ -555,39 +608,37 @@ export default function ExchangeOrder() {
           <div className="eo-section-label">حالة الطلب</div>
           <div className="eo-status-steps">
             {[
-              { key:'pending',    label:'تم استلام الطلب',       icon:'📥' },
-              { key:'verifying',  label:'جاري التحقق من الدفع',  icon:'🔍' },
-              { key:'verified',   label:'تم التحقق من الدفع',    icon:'✅' },
-              { key:'processing', label:'جاري إرسال MoneyGo',    icon:'⚡' },
-              { key:'completed',  label:'تم الإرسال بنجاح',      icon:'🎉' },
+              { key:'pending',     label:'تم استلام الطلب',       icon:'📥' },
+              { key:'verifying',   label: isRejected || isCancelled ? 'رُفض التحقق من الدفع ❌' : 'جاري التحقق من الدفع', icon: isRejected || isCancelled ? '❌' : '🔍' },
+              { key:'verified',    label:'تم التحقق من الدفع',    icon:'✅' },
+              { key:'processing',  label:'جاري المعالجة',         icon:'⚡' },
+              { key:'money_ready', label:'تم الإرسال — بانتظار تأكيدك', icon:'💸' },
+              { key:'completed',   label:'تم الإرسال بنجاح',      icon:'🎉' },
             ].map((step, i, arr) => {
-              const order_ = ['pending','verifying','verified','processing','completed','rejected','cancelled']
+              const order_ = ['pending','verifying','verified','processing','money_ready','completed','rejected','cancelled']
               const curIdx  = order_.indexOf(currentStatus)
               const stepIdx = order_.indexOf(step.key)
+              // خطوة verifying تتحول لـ rejected إذا الطلب مرفوض
+              const isVerifyingRejected = step.key === 'verifying' && (isRejected || isCancelled)
               const isActive    = step.key === currentStatus && !isDone
-              const isCompleted_ = stepIdx < curIdx || (currentStatus === 'completed' && stepIdx <= order_.indexOf('completed'))
+              const isCompleted_ = stepIdx < curIdx && !isRejected && !isCancelled
+                || (currentStatus === 'completed' && stepIdx <= order_.indexOf('completed'))
               return (
-                <div key={step.key} className={`eo-status-step ${isActive ? 'eo-status-step--active' : ''} ${isCompleted_ ? 'eo-status-step--done' : ''}`}>
+                <div key={step.key} className={`eo-status-step ${isActive ? 'eo-status-step--active' : ''} ${isCompleted_ ? 'eo-status-step--done' : ''} ${isVerifyingRejected ? 'eo-status-step--rejected' : ''}`}>
                   <div className="eo-status-step-dot">
-                    {isCompleted_
-                      ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      : isActive
-                        ? <span className="eo-pulse-dot" />
-                        : <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--border-2)', display:'block' }} />}
+                    {isVerifyingRejected
+                      ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      : isCompleted_
+                        ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        : isActive
+                          ? <span className="eo-pulse-dot" />
+                          : <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--border-2)', display:'block' }} />}
                   </div>
                   {i < arr.length-1 && <div className={`eo-status-step-line ${isCompleted_ ? 'eo-status-step-line--done' : ''}`} />}
                   <span className="eo-status-step-label">{step.icon} {step.label}</span>
                 </div>
               )
             })}
-            {(isRejected || isCancelled) && (
-              <div className="eo-status-step eo-status-step--rejected">
-                <div className="eo-status-step-dot" style={{ borderColor:'#f87171', color:'#f87171' }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </div>
-                <span className="eo-status-step-label" style={{ color:'#f87171' }}>❌ {isRejected ? 'تم رفض الطلب' : 'تم إلغاء الطلب'}</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -668,6 +719,35 @@ const CSS = `
     padding: 14px 16px; border-radius: 12px;
     background: linear-gradient(135deg,rgba(52,211,153,0.1),rgba(0,229,160,0.07));
     border: 1.5px solid rgba(52,211,153,0.3);
+  }
+
+  .eo-money-ready-banner {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 20px 16px; border-radius: 14px; text-align: center;
+    background: linear-gradient(135deg,rgba(167,139,250,0.12),rgba(124,92,252,0.07));
+    border: 2px solid rgba(167,139,250,0.4);
+    animation: eo-fadeIn 0.4s ease;
+  }
+  @keyframes eo-fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .eo-confirm-recv-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 32px; border: none; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg,#a78bfa,#7c5fe6);
+    color: #fff; font-family: 'Cairo','Tajawal',sans-serif;
+    font-size: 1rem; font-weight: 800;
+    box-shadow: 0 4px 20px rgba(167,139,250,0.35);
+    transition: transform 0.18s, box-shadow 0.18s, opacity 0.18s;
+  }
+  .eo-confirm-recv-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(167,139,250,0.5);
+  }
+  .eo-confirm-recv-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .eo-btn-spin {
+    display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+    animation: eo-spin 0.8s linear infinite;
   }
 
   .eo-timer { display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 9px; background: rgba(0,210,255,0.06); border: 1px solid rgba(0,210,255,0.18); font-size: 0.82rem; color: var(--cyan); }

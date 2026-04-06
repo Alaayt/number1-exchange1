@@ -53,14 +53,15 @@ router.get('/orders/:id', async (req, res) => {
 router.put('/orders/:id/status', async (req, res) => {
   try {
     const { status, note, transferId } = req.body;
-    const validStatuses = ['verifying', 'verified', 'processing', 'completed', 'rejected', 'cancelled'];
+    const validStatuses = ['verifying', 'verified', 'processing', 'money_ready', 'completed', 'rejected', 'cancelled'];
     if (!validStatuses.includes(status)) return res.status(400).json({ success: false, message: 'Invalid status.' });
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found.' });
     order.status = status;
     if (note) order.adminNote = note;
     if (transferId) order.moneygo.transferId = transferId;
-    if (status === 'completed') order.moneygo.transferStatus = 'sent';
+    if (status === 'money_ready') order.moneygo.transferStatus = 'pending_confirmation';
+    else if (status === 'completed') order.moneygo.transferStatus = 'sent';
     else if (status === 'rejected') order.moneygo.transferStatus = 'failed';
     order.addTimeline(status, note || `Status updated to ${status}`, `admin:${req.user.email}`);
     await order.save();

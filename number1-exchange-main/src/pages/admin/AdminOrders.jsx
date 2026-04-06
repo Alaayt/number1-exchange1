@@ -17,13 +17,14 @@ const ORDER_TYPE_LABELS = {
 }
 
 const STATUS_TABS = [
-  { value: '',           label: 'الكل'      },
-  { value: 'pending',    label: 'انتظار'    },
-  { value: 'verifying',  label: 'تحقق'      },
-  { value: 'verified',   label: 'تم التحقق' },
-  { value: 'processing', label: 'معالجة'    },
-  { value: 'completed',  label: 'مكتمل'     },
-  { value: 'rejected',   label: 'مرفوض'     },
+  { value: '',             label: 'الكل'           },
+  { value: 'pending',      label: 'انتظار'         },
+  { value: 'verifying',    label: 'تحقق'           },
+  { value: 'verified',     label: 'تم التحقق'      },
+  { value: 'processing',   label: 'معالجة'         },
+  { value: 'money_ready',  label: '💸 جاهز للاستلام' },
+  { value: 'completed',    label: 'مكتمل'          },
+  { value: 'rejected',     label: 'مرفوض'          },
 ]
 
 const LIMIT = 15
@@ -175,10 +176,27 @@ function OrderDetailModal({ order, onClose, onUpdateStatus, loading }) {
 
       {!['completed', 'rejected', 'cancelled'].includes(order.status) && (
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-          <button style={modal.approveBtn} disabled={loading} onClick={() => onUpdateStatus(order._id, 'completed')}>
-            <CheckCircle size={16} />
-            {loading ? '...' : 'إكمال الطلب'}
-          </button>
+          {/* زر إكمال الطلب — يظهر فقط بعد تأكيد العميل (money_ready → completed) */}
+          {order.status === 'money_ready' && (
+            <button style={{ ...modal.approveBtn, background: 'rgba(0,229,160,0.15)', color: '#00e5a0', border: '1px solid rgba(0,229,160,0.3)', flex: 1 }} disabled={loading} onClick={() => onUpdateStatus(order._id, 'completed')}>
+              <CheckCircle size={16} />
+              {loading ? '...' : '✅ إتمام الطلب نهائياً'}
+            </button>
+          )}
+          {/* زر "أرسلت الفلوس للعميل" — يظهر في مرحلة processing */}
+          {order.status === 'processing' && (
+            <button style={{ ...modal.approveBtn, background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)', flex: 1 }} disabled={loading} onClick={() => onUpdateStatus(order._id, 'money_ready')}>
+              <CheckCircle size={16} />
+              {loading ? '...' : '💸 أرسلت الفلوس للعميل'}
+            </button>
+          )}
+          {/* زر إكمال عام لغير processing وغير money_ready */}
+          {!['processing', 'money_ready'].includes(order.status) && (
+            <button style={modal.approveBtn} disabled={loading} onClick={() => onUpdateStatus(order._id, 'completed')}>
+              <CheckCircle size={16} />
+              {loading ? '...' : 'إكمال الطلب'}
+            </button>
+          )}
           <button style={modal.rejectBtn} disabled={loading} onClick={() => onUpdateStatus(order._id, 'rejected')}>
             <XCircle size={16} />
             {loading ? '...' : 'رفض الطلب'}

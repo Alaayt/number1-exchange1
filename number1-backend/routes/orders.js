@@ -477,4 +477,49 @@ router.post('/:orderNumber/cancel', async (req, res) => {
   }
 })
 
+// ─── POST /api/orders/:orderNumber/confirm-received ──────
+// تأكيد استلام المبلغ من قبل العميل (يحرك الطلب من money_ready إلى completed)
+router.post('/:orderNumber/confirm-received', async (req, res) => {
+  try {
+    const { sessionToken } = req.body
+    const orderNumber = req.params.orderNumber.toUpperCase()
+
+    const order = await Order.findOne({ orderNumber })
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'الطلب غير موجود.' })
+    }
+
+    // التحقق من الـ session token للأمان
+    if (sessionToken && order.sessionToken !== sessionToken) {
+      return res.status(403).json({ success: false, message: 'غير مصرح.' })
+    }
+
+    // يجب أن يكون الطلب في حالة money_ready
+    if (order.status !== 'money_ready') {
+      return res.status(400).json({
+        success: false,
+        message: 'الطلب ليس في حالة انتظار تأكيد الاستلام.'
+      })
+    }
+
+    order.status = 'completed'
+    order.moneygo.transferStatus = 'completed'
+    order.addTimeline('completed', 'تأكيد استلام المبلغ من قبل العميل', 'customer')
+    await order.save()
+
+    // إشعار التليغرام
+    try {
+      await telegramService.notifyOrderUpdate(order, 'completed', 'تأكيد العميل لاستلام المبلغ')
+    } catch (tgErr) {
+      console.error('Telegram confirm notify failed:', tgErr.message)
+    }
+
+    res.json({ success: true, message: 'تم تأكيد الاستلام وإكمال الطلب.' })
+
+  } catch (error) {
+    console.error('Confirm received error:', error)
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+
 module.exports = router
