@@ -2,41 +2,20 @@
 // ═══════════════════════════════════════════════════════════════
 // محرك الأسعار — المصدر الوحيد لكل منطق الحساب
 //
-// القاعدة الذهبية:
-//   كل زوج (from → to) له سعر واحد محدد بشكل صريح.
-//   لا يوجد dynamic keys، لا fallback عشوائي.
-//
 // الأسعار في DB:
-//   usdtBuyRate     — نحن نشتري USDT  (مستخدم يرسل USDT، يستلم EGP/MGO)
-//   usdtSellRate    — نحن نبيع USDT   (مستخدم يرسل EGP، يستلم USDT)
-//   moneygoRate     — سعر MoneyGo ↔ USDT
-//   vodafoneBuyRate — سعر Vodafone Cash (EGP → USDT/MGO)
-//   instaPayRate    — سعر InstaPay     (EGP → USDT/MGO)
-//   fawryRate       — سعر Fawry        (EGP → USDT/MGO)
-//   orangeRate      — سعر Orange Cash  (EGP → USDT/MGO)
+//   usdtBuyRate     — كم جنيه يدفع المستخدم ليحصل على 1 USDT
+//   usdtSellRate    — كم جنيه يحصل المستخدم مقابل 1 USDT
+//   moneygoRate     — كم USDT يساوي 1 MoneyGo
+//   vodafoneBuyRate — كم جنيه فودافون = 1 USDT
+//   instaPayRate    — كم جنيه إنستا = 1 USDT
+//   fawryRate       — كم جنيه فاوري = 1 USDT
+//   orangeRate      — كم جنيه أورنج = 1 USDT
 // ═══════════════════════════════════════════════════════════════
-
-// ── خريطة الأسعار — صريحة 100% ─────────────────────────────
-// البنية: RATE_MAP[fromId][toId] = دالة تأخذ (rates) وترجع رقم
-//
-// المنطق المالي:
-//   EGP → MGO/USDT : المستخدم يرسل جنيه → نقسم على السعر
-//                    مثال: 500 EGP ÷ 50 = 10 USDT
-//                    divide: true
-//
-//   USDT → MGO     : المستخدم يرسل USDT → نضرب في سعر البيع
-//                    مثال: 10 USDT × 0.98 = 9.8 MGO
-//                    divide: false
-//
-//   MGO → USDT     : المستخدم يرسل MGO → نضرب في moneygoRate
-//                    divide: false
-//
-//   USDT ↔ wallet  : 1:1 دائماً
-// ─────────────────────────────────────────────────────────────
 
 const RATE_MAP = {
 
   // ── Vodafone Cash (EGP) → ────────────────────────────────
+  // العميل يدفع جنيه فودافون ÷ السعر = USDT أو MoneyGo
   'vodafone': {
     'mgo-recv':  (r) => ({ rate: r.vodafoneBuyRate, divide: true }),
     'usdt-recv': (r) => ({ rate: r.vodafoneBuyRate, divide: true }),
@@ -62,15 +41,18 @@ const RATE_MAP = {
 
   // ── USDT TRC20 → ─────────────────────────────────────────
   'usdt-trc': {
-    // USDT → MoneyGo: نبيع USDT ونعطي دولار MoneyGo
-    'mgo-recv':    (r) => ({ rate: r.usdtBuyRate,  divide: false }),
+    // USDT → MoneyGo: العميل يرسل USDT × moneygoRate = MoneyGo
+    // مثال: 10 USDT × 1.004 = 10.04 MoneyGo
+    'mgo-recv':    (r) => ({ rate: r.moneygoRate,  divide: false }), // ✅ مصحح
+
     // USDT → محفظة داخلية: 1:1
     'wallet-recv': ()  => ({ rate: 1,              divide: false }),
   },
 
   // ── MoneyGo USD → ────────────────────────────────────────
   'mgo-send': {
-    // MoneyGo → USDT
+    // MoneyGo → USDT: العميل يرسل MoneyGo × moneygoRate = USDT
+    // مثال: 10 MoneyGo × 1.004 = 10.04 USDT
     'usdt-recv': (r) => ({ rate: r.moneygoRate, divide: false }),
   },
 
@@ -78,22 +60,13 @@ const RATE_MAP = {
   'wallet-usdt': {
     // محفظة → USDT TRC20: 1:1
     'usdt-recv': () => ({ rate: 1, divide: false }),
-    // محفظة → MoneyGo
-    'mgo-recv':  (r) => ({ rate: r.usdtBuyRate, divide: false }),
+    // محفظة → MoneyGo: × moneygoRate
+    'mgo-recv':  (r) => ({ rate: r.moneygoRate, divide: false }),
   },
 }
 
 // ════════════════════════════════════════════════════════════
 // getRate — الدالة الوحيدة المسموح استخدامها في كل المشروع
-//
-// @param fromId  — ID وسيلة الإرسال  (من SEND_METHODS)
-// @param toId    — ID وسيلة الاستلام (من RECEIVE_METHODS)
-// @param rates   — كائن الأسعار من API  (/api/public/rates)
-//
-// @returns { rate: number, divide: boolean }
-//   rate   — السعر المطبّق
-//   divide — true  = receiveAmount = sendAmount ÷ rate  (EGP → USDT)
-//            false = receiveAmount = sendAmount × rate  (USDT → MGO)
 // ════════════════════════════════════════════════════════════
 export function getRate(fromId, toId, rates) {
   const DEFAULT_RATE = { rate: 1, divide: false }
@@ -114,7 +87,6 @@ export function getRate(fromId, toId, rates) {
 
   const result = rateFunc(rates)
 
-  // تحقق من صحة السعر
   if (!result.rate || result.rate <= 0) {
     console.warn(`[rateEngine] Invalid rate for "${fromId}" → "${toId}":`, result.rate)
     return DEFAULT_RATE
@@ -143,11 +115,11 @@ export function getRateDisplay(fromId, toId, rates, fromSymbol, toSymbol) {
   const { rate, divide } = getRate(fromId, toId, rates)
 
   if (divide) {
-    // 1 USDT = 50 EGP (أي المستخدم يدفع 50 جنيه ليحصل على 1 USDT)
-    return `1 ${toSymbol || 'USDT'} = ${rate.toFixed(2)} ${fromSymbol || 'EGP'}`
+    // العميل يدفع N جنيه ليحصل على 1 USDT
+    return `${rate.toFixed(2)} ${fromSymbol || 'EGP'} = 1 ${toSymbol || 'USDT'}`
   } else {
-    // 1 USDT = 0.98 MGO
-    return `1 ${fromSymbol || 'USDT'} = ${rate.toFixed(4)} ${toSymbol || 'MGO'}`
+    // 1 MoneyGo = 1.004 USDT
+    return `1 ${fromSymbol || 'MGO'} = ${rate.toFixed(4)} ${toSymbol || 'USDT'}`
   }
 }
 
@@ -167,10 +139,8 @@ export function toOrderType(fromId, toId) {
   const result = MAP[key]
 
   if (!result) {
-    // EGP methods → MoneyGo/USDT
     const egpSenders = ['vodafone', 'instapay', 'fawry', 'orange']
     if (egpSenders.includes(fromId)) return 'EGP_WALLET_TO_MONEYGO'
-
     console.warn(`[rateEngine] Unknown orderType for: "${fromId}" → "${toId}"`)
     return 'EGP_WALLET_TO_MONEYGO'
   }
