@@ -111,6 +111,7 @@ router.post('/telegram-webhook-internal', async (req, res) => {
 
     const { data, id: callbackQueryId, message } = callback_query;
 
+    // ── استخرج الـ action والـ orderId ──────────────
     const underscoreIdx = data.indexOf('_')
     const action  = data.substring(0, underscoreIdx)
     const orderId = data.substring(underscoreIdx + 1)
@@ -118,6 +119,24 @@ router.post('/telegram-webhook-internal', async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) {
       await telegramService.answerCallbackQuery(callbackQueryId, '❌ الطلب غير موجود');
+      return res.json({ success: true });
+    }
+
+    // ── التحقق من المنطق الإجباري ───────────────────
+    // approve → فقط من pending/verifying
+    // complete → فقط بعد approve (verified/processing)
+    // reject → فقط من pending/verifying
+    const allowedTransitions = {
+      approve:  ['pending', 'verifying'],
+      reject:   ['pending', 'verifying'],
+      complete: ['verified', 'processing'],
+    }
+
+    if (!allowedTransitions[action]?.includes(order.status)) {
+      await telegramService.answerCallbackQuery(
+        callbackQueryId,
+        `⚠️ لا يمكن تنفيذ هذا الإجراء — الحالة الحالية: ${order.status}`
+      )
       return res.json({ success: true });
     }
 
@@ -133,62 +152,37 @@ router.post('/telegram-webhook-internal', async (req, res) => {
     order.addTimeline(newStatus, `${message_text} via Telegram`, 'admin:telegram');
     await order.save();
 
-    // ── تحديث رسالة تيليجرام بالأزرار الصحيحة ──
+    // ── رد فوري على الأدمن ───────────────────────────
+    await telegramService.answerCallbackQuery(callbackQueryId, message_text);
+
+    // ── تحديث رسالة التليجرام بالأزرار الصحيحة ──────
     const msgId = order.telegramMessageId || message?.message_id
     if (msgId) {
       await telegramService.editOrderMessage(msgId, order, action)
     }
 
-    await telegramService.answerCallbackQuery(callbackQueryId, message_text);
-
-    // ── إذا اكتمل الطلب وكانت وسيلة الاستلام المحفظة الداخلية ──
-    if (action === 'complete' && order.orderType === 'USDT_TO_WALLET') {
-      try {
-        const Wallet      = require('../models/Wallet')
-        const Transaction = require('../models/Transaction')
-
-        // نجد المستخدم من الإيميل
-        const User = require('../models/User')
-        const user = await User.findOne({ email: order.customerEmail })
-
-        if (user) {
-          let wallet = await Wallet.findOne({ user: user._id })
-          if (!wallet) wallet = await Wallet.create({ user: user._id })
-
-          if (!wallet.isActive) {
-            console.warn('Wallet is inactive for user:', user.email)
-          } else {
-            const amountToAdd   = order.exchangeRate.finalAmountUSD
-            const balanceBefore = wallet.balance
-
-            wallet.balance        += amountToAdd
-            wallet.totalDeposited += amountToAdd
-            await wallet.save()
-
-            await Transaction.create({
-              user:         user._id,
-              wallet:       wallet._id,
-              type:         'deposit',
-              amount:       amountToAdd,
-              balanceBefore,
-              balanceAfter: wallet.balance,
-              status:       'completed',
-              performedBy:  'admin:telegram',
-              note:         `إيداع تلقائي من طلب ${order.orderNumber}`
-            })
-
-            console.log(`✅ تم إضافة ${amountToAdd} USDT لمحفظة ${user.email}`)
-          }
-        }
-      } catch (walletErr) {
-        console.error('Auto wallet deposit error:', walletErr.message)
-      }
-    }
+    // ── بث التحديث عبر SSE للعميل ───────────────────
+    const sseService = require('../services/sse') // إذا عندك SSE service
+    sseService.broadcast(order._id.toString(), {
+      type: 'STATUS_UPDATE',
+      status: newStatus,
+      updatedAt: new Date()
+    })
 
     res.json({ success: true });
   } catch (error) {
     console.error('Telegram webhook error:', error);
     res.json({ success: true });
+  }
+});
+
+// ─── GET /api/admin/rates ─────────────────────
+router.get('/rates', async (req, res) => {
+  try {
+    const rates = await Rate.getSingleton();
+    res.json({ success: true, ...rates.toObject() });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
 
