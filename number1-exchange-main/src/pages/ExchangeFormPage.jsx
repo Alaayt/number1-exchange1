@@ -6,7 +6,6 @@ import FlowDots from '../components/shared/FlowDots'
 import { SEND_METHODS, RECEIVE_METHODS } from '../data/currencies'
 import {
   getRate,
-  calcReceiveAmount,
   getRateDisplay,
   toOrderType,
   toPaymentMethod,
@@ -49,7 +48,8 @@ function genMath() {
   return { a, b, ans: String(a + b) }
 }
 
-export default function ExchangeFormPage() {
+// ── onOpenAuth: لفتح modal تسجيل الدخول ──────
+export default function ExchangeFormPage({ onOpenAuth }) {
   const navigate  = useNavigate()
   const [params]  = useSearchParams()
   const { user }  = useAuth()
@@ -61,8 +61,8 @@ export default function ExchangeFormPage() {
     if (!fromId || !toId) navigate('/exchange', { replace: true })
   }, [fromId, toId, navigate])
 
-  const sendMethod = SEND_METHODS.find(m => m.id === fromId)   || null
-  const recvMethod = RECEIVE_METHODS.find(m => m.id === toId)  || null
+  const sendMethod = SEND_METHODS.find(m => m.id === fromId)  || null
+  const recvMethod = RECEIVE_METHODS.find(m => m.id === toId) || null
 
   const isWalletRecv  = toId   === 'wallet-recv'
   const isWalletSend  = fromId === 'wallet-usdt'
@@ -71,12 +71,16 @@ export default function ExchangeFormPage() {
   const isEgpSend     = sendMethod?.type === 'egp'
   const isUsdtSend    = fromId === 'usdt-trc'
 
+  // ── إذا المحفظة الداخلية وغير مسجل — ارجع وافتح Modal ──
   useEffect(() => {
-    if (isWalletSend && !user) navigate('/exchange', { replace: true })
-  }, [isWalletSend, user])
+    if ((isWalletSend || isWalletRecv) && !user) {
+      navigate('/exchange', { replace: true })
+      setTimeout(() => onOpenAuth?.('login'), 150)
+    }
+  }, [isWalletSend, isWalletRecv, user])
 
-  // ── بيانات API ──────────────────────────────────────────────
-  const [rates,      setRates]   = useState(null)
+  // ── بيانات API ──────────────────────────────────────────
+  const [rates,      setRates]    = useState(null)
   const [adminItem,  setAdminItem] = useState(null)
   const [apiLoading, setLoading]  = useState(true)
 
@@ -86,21 +90,20 @@ export default function ExchangeFormPage() {
       fetch(`${API}/api/public/rates`).then(r => r.json()).catch(() => null),
       fetch(`${API}/api/public/payment-methods`).then(r => r.json()).catch(() => null),
     ]).then(([ratesRes, methodsRes]) => {
-      if (ratesRes?.success)   setRates(ratesRes)
+      if (ratesRes?.success)    setRates(ratesRes)
       if (methodsRes?.success) {
-        if (isEgpSend)      setAdminItem(methodsRes.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || methodsRes.wallets?.[0] || null)
+        if (isEgpSend)       setAdminItem(methodsRes.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || methodsRes.wallets?.[0] || null)
         else if (isUsdtSend) setAdminItem(methodsRes.cryptos?.[0] || null)
       }
     }).finally(() => setLoading(false))
   }, [fromId])
 
-  // ── حالة المبالغ — المتزامنة ─────────────────────────────
-  // lastEdited: 'send' | 'recv'
+  // ── حالة المبالغ المتزامنة ──────────────────────────────
   const [sendAmount,    setSendAmount]    = useState('')
   const [receiveAmount, setReceiveAmount] = useState('')
   const [lastEdited,    setLastEdited]    = useState('send')
 
-  // ── باقي الحالة ──────────────────────────────────────────
+  // ── باقي الحالة ─────────────────────────────────────────
   const [recipientId, setRecipientId] = useState('')
   const [usdtAddress, setUsdtAddress] = useState('')
   const [usdtNetwork, setUsdtNetwork] = useState('TRC20')
@@ -126,7 +129,7 @@ export default function ExchangeFormPage() {
       .then(r => r.json()).then(d => { if (d.success) setWalletId(d.wallet.walletId) }).catch(() => {})
   }, [isWalletRecv, user])
 
-  // ── حساب السعر ──────────────────────────────────────────
+  // ── السعر ──────────────────────────────────────────────
   const rateDisplay = useMemo(() => {
     if (!rates) return '...'
     return getRateDisplay(fromId, toId, rates, sendMethod?.symbol, recvMethod?.symbol)
@@ -137,37 +140,36 @@ export default function ExchangeFormPage() {
     return getRate(fromId, toId, rates)
   }, [fromId, toId, rates])
 
-  // ── منطق التزامن — كتبت في Send ─────────────────────────
+  // ── كتبت في Send ────────────────────────────────────────
   const handleSendChange = useCallback((val) => {
     setSendAmount(val)
     setLastEdited('send')
-    clearErr('amount')
+    if (fieldErrors.amount) setFieldErrors(p => ({ ...p, amount: '' }))
     if (!val || !appliedRate) { setReceiveAmount(''); return }
     const amt = parseFloat(val)
     if (isNaN(amt) || amt <= 0) { setReceiveAmount(''); return }
     const recv = divide ? (amt / appliedRate) : (amt * appliedRate)
     setReceiveAmount(recv.toFixed(4))
-  }, [appliedRate, divide])
+  }, [appliedRate, divide, fieldErrors.amount])
 
-  // ── منطق التزامن — كتبت في Receive ──────────────────────
+  // ── كتبت في Receive ─────────────────────────────────────
   const handleReceiveChange = useCallback((val) => {
     setReceiveAmount(val)
     setLastEdited('recv')
-    clearErr('amount')
+    if (fieldErrors.amount) setFieldErrors(p => ({ ...p, amount: '' }))
     if (!val || !appliedRate) { setSendAmount(''); return }
     const amt = parseFloat(val)
     if (isNaN(amt) || amt <= 0) { setSendAmount(''); return }
-    // عكس الحساب
     const send = divide ? (amt * appliedRate) : (amt / appliedRate)
     setSendAmount(send.toFixed(4))
-  }, [appliedRate, divide])
+  }, [appliedRate, divide, fieldErrors.amount])
 
   // ── حدود العملة ─────────────────────────────────────────
   const limits = useMemo(() => {
     if (!rates) return { min: 10, max: 5000, unit: 'USDT' }
-    if (isEgpSend)                      return { min: rates.minEgp  || 100,   max: rates.maxEgp  || 300000, unit: 'EGP'  }
-    if (isMoneyGoRecv && !isEgpSend)    return { min: rates.minMgo  || 10,    max: rates.maxMgo  || 10000,  unit: 'MGO'  }
-    return                                     { min: rates.minUsdt || rates.minOrderUsdt || 10, max: rates.maxUsdt || rates.maxOrderUsdt || 5000, unit: 'USDT' }
+    if (isEgpSend)                   return { min: rates.minEgp  || 100, max: rates.maxEgp  || 300000, unit: 'EGP'  }
+    if (isMoneyGoRecv && !isEgpSend) return { min: rates.minMgo  || 10,  max: rates.maxMgo  || 10000,  unit: 'MGO'  }
+    return                                  { min: rates.minUsdt || rates.minOrderUsdt || 10, max: rates.maxUsdt || rates.maxOrderUsdt || 5000, unit: 'USDT' }
   }, [rates, isEgpSend, isMoneyGoRecv])
 
   // ── Validation ───────────────────────────────────────────
@@ -175,19 +177,15 @@ export default function ExchangeFormPage() {
     const errs  = {}
     const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
     const amt   = parseFloat(sendAmount)
-
-    if (!sendAmount || isNaN(amt) || amt <= 0)  errs.amount = 'يرجى إدخال مبلغ صحيح'
+    if (!sendAmount || isNaN(amt) || amt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
     else if (amt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
     else if (amt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
-
-    if (!email || !emailRx.test(email))  errs.email = 'يرجى إدخال بريد إلكتروني صحيح'
+    if (!email || !emailRx.test(email)) errs.email = 'يرجى إدخال بريد إلكتروني صحيح'
     if (isEgpSend && userPhone && !/^\+?[0-9\s\-]{7,20}$/.test(userPhone.trim())) errs.phone = 'رقم الهاتف غير صحيح'
-
     if (isMoneyGoRecv && recipientId.trim().length < 3) errs.recipient = 'يرجى إدخال معرّف محفظة MoneyGo صحيح'
     if (isUsdtRecv    && usdtAddress.trim().length < 10) errs.recipient = 'يرجى إدخال عنوان محفظة USDT صحيح'
-    if (isWalletRecv  && !user)     errs.recipient = 'يجب تسجيل الدخول لاستخدام المحفظة الداخلية'
+    if (isWalletRecv  && !user)           errs.recipient = 'يجب تسجيل الدخول لاستخدام المحفظة الداخلية'
     if (isWalletRecv  && user && !walletId) errs.recipient = 'جاري تحميل بيانات المحفظة، حاول مرة أخرى'
-
     if (!agreed) errs.agreed = 'يجب الموافقة على الشروط والأحكام للمتابعة'
     if (mathInput.trim() !== math.ans) errs.math = 'إجابة خاطئة — تحقق من الحساب مرة أخرى'
     return errs
@@ -225,8 +223,8 @@ export default function ExchangeFormPage() {
 
       const recipientPhone = isMoneyGoRecv ? recipientId : isUsdtRecv ? usdtAddress : isWalletRecv ? walletId : ''
       const finalAmountUSD = parseFloat(receiveAmount) || 0
-
       const token = localStorage.getItem('n1_token')
+
       const res = await fetch(`${API}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
@@ -329,10 +327,8 @@ export default function ExchangeFormPage() {
         {/* ══ المبلغان المتزامنان ══ */}
         <div className="ef-card" id="field-amount">
 
-          {/* ── مربع الإرسال ── */}
-          <label className="ef-label">
-            المبلغ المُرسَل <span style={{ color: 'var(--red)' }}>*</span>
-          </label>
+          {/* مربع الإرسال */}
+          <label className="ef-label">المبلغ المُرسَل <span style={{ color: 'var(--red)' }}>*</span></label>
           <div className={`ef-amount-row ${fieldErrors.amount && lastEdited === 'send' ? 'ef-amount-row--error' : ''}`}>
             <input
               type="number" min="0" step="any"
@@ -347,7 +343,7 @@ export default function ExchangeFormPage() {
             </div>
           </div>
 
-          {/*   فاصل سهم */}
+          {/* فاصل سهم */}
           <div className="ef-swap-divider">
             <div className="ef-swap-line" />
             <div className="ef-swap-icon">
@@ -358,7 +354,7 @@ export default function ExchangeFormPage() {
             <div className="ef-swap-line" />
           </div>
 
-          {/* ──   مربع الاستلام ── */}
+          {/* مربع الاستلام */}
           <label className="ef-label">
             المبلغ المُستلَم <span style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>(تقريبي)</span>
           </label>
@@ -378,7 +374,6 @@ export default function ExchangeFormPage() {
           </div>
 
           <FieldError msg={fieldErrors.amount} />
-
           <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 2 }}>
             الحد الأدنى: {limits.min.toLocaleString()} {limits.unit} · الأقصى: {limits.max.toLocaleString()} {limits.unit}
           </div>
@@ -417,9 +412,9 @@ export default function ExchangeFormPage() {
                 <div className="ef-wallet-info-icon">🏦</div>
                 <div>
                   <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-1)' }}>سيتم الإيداع في محفظتك الداخلية تلقائياً</div>
-                  {walletId ? <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4 }}>رقم المحفظة: {walletId}</div>
-                  : !user    ? <div style={{ fontSize: '0.72rem', color: '#f87171', marginTop: 4 }}>⚠ يجب تسجيل الدخول لاستخدام المحفظة الداخلية</div>
-                  :             <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 4 }}>جاري تحميل بيانات المحفظة...</div>}
+                  {walletId   ? <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginTop: 4 }}>رقم المحفظة: {walletId}</div>
+                  : !user     ? <div style={{ fontSize: '0.72rem', color: '#f87171', marginTop: 4 }}>⚠ يجب تسجيل الدخول لاستخدام المحفظة الداخلية</div>
+                  :              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 4 }}>جاري تحميل بيانات المحفظة...</div>}
                 </div>
               </div>
               <FieldError msg={fieldErrors.recipient} />
@@ -544,12 +539,10 @@ const CSS = `
   .ef-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
   .ef-input--error { border-color: rgba(239,68,68,0.6) !important; background: rgba(239,68,68,0.04); }
   .ef-mono { font-family: 'JetBrains Mono',monospace; font-size: 0.82rem; }
-
-  /* ── مربعا المبلغ ── */
   .ef-amount-row { display: flex; gap: 0; align-items: stretch; border: 1px solid var(--border-1); border-radius: 10px; overflow: hidden; transition: border-color 0.18s; }
   .ef-amount-row--recv { background: rgba(0,229,160,0.03); border-color: rgba(0,229,160,0.25); }
   .ef-amount-row--error { border-color: rgba(239,68,68,0.6) !important; background: rgba(239,68,68,0.04); }
-  .ef-amount-row:focus-within:not(.ef-amount-row--error) { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
+  .ef-amount-row:focus-within:not(.ef-amount-row--error):not(.ef-amount-row--recv) { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,210,255,0.1); }
   .ef-amount-row--recv:focus-within { border-color: rgba(0,229,160,0.5); box-shadow: 0 0 0 3px rgba(0,229,160,0.1); }
   .ef-amount-input { flex: 1; border: none !important; border-radius: 0 !important; font-size: 1.1rem !important; font-weight: 700; box-shadow: none !important; background: transparent !important; }
   .ef-amount-input--recv { color: var(--green) !important; }
@@ -557,13 +550,9 @@ const CSS = `
   .ef-amount-input:disabled { opacity: 0.7; cursor: not-allowed; }
   .ef-currency-badge { display: flex; align-items: center; gap: 6px; padding: 0 14px; background: rgba(255,255,255,0.04); border-right: 1px solid var(--border-1); font-size: 0.82rem; font-weight: 700; color: var(--text-2); flex-shrink: 0; }
   .ef-currency-badge--recv { background: rgba(0,229,160,0.06); border-right-color: rgba(0,229,160,0.2); color: var(--green); }
-عليه؟
-
-  /* ── فاصل السهم ── */
   .ef-swap-divider { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
   .ef-swap-line { flex: 1; height: 1px; background: var(--border-1); }
   .ef-swap-icon { width: 28px; height: 28px; border-radius: 50%; background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); display: flex; align-items: center; justify-content: center; color: var(--green); flex-shrink: 0; }
-
   .ef-hint { font-size: 0.72rem; color: var(--text-3); font-family: 'JetBrains Mono',monospace; margin: 0; }
   .ef-network-row { display: flex; gap: 8px; }
   .ef-net-btn { padding: 7px 18px; border-radius: 8px; cursor: pointer; border: 1.5px solid var(--border-1); background: transparent; color: var(--text-2); font-family: 'JetBrains Mono',monospace; font-size: 0.82rem; font-weight: 700; transition: all 0.15s; }
