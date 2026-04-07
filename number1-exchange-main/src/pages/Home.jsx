@@ -5,6 +5,29 @@ import useLang from "../context/useLang"
 import { GooeyText } from "../components/ui/gooey-text-morphing"
 import { SEND_METHODS, RECEIVE_METHODS } from "../data/currencies"
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
+// ── hook لجلب الوسائل المفعّلة من الأدمن ──────────────
+function useActiveMethods() {
+  const [activeSend, setActiveSend] = useState(SEND_METHODS)
+  const [activeRecv, setActiveRecv] = useState(RECEIVE_METHODS)
+
+  useEffect(() => {
+    fetch(`${API}/api/public/exchange-methods`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) return
+        const enabledSend = data.sendMethods.filter(m => m.enabled).map(m => m.id)
+        const enabledRecv = data.receiveMethods.filter(m => m.enabled).map(m => m.id)
+        setActiveSend(SEND_METHODS.filter(m => enabledSend.includes(m.id)))
+        setActiveRecv(RECEIVE_METHODS.filter(m => enabledRecv.includes(m.id)))
+      })
+      .catch(() => {}) // في حالة فشل الاتصال نُظهر كل الوسائل
+  }, [])
+
+  return { activeSend, activeRecv }
+}
+
 // ══ أيقونة العملة / المحفظة ══
 function CurrencyIcon({ method, size = 36 }) {
   const [imgErr, setImgErr] = useState(false)
@@ -110,10 +133,10 @@ function MethodCard({ method, selected, disabled, onClick }) {
 }
 
 // ══ لوحة الإرسال (ديسكتوب) ══
-function SendPanel({ sendMethod, recvMethod, onSelect }) {
+function SendPanel({ sendMethod, recvMethod, onSelect, activeSend }) {
   const { lang } = useLang()
-  const regularMethods = SEND_METHODS.filter(m => !m.walletOnly)
-  const walletMethod   = SEND_METHODS.find(m => m.id === 'wallet-usdt')
+  const regularMethods = activeSend.filter(m => m.id !== 'wallet-usdt')
+  const walletMethod   = activeSend.find(m => m.id === 'wallet-usdt')
   return (
     <div style={{
       background: "var(--card)", border: "1px solid var(--border-1)",
@@ -171,10 +194,10 @@ function SendPanel({ sendMethod, recvMethod, onSelect }) {
 }
 
 // ══ لوحة الاستلام (ديسكتوب) ══
-function ReceivePanel({ sendMethod, recvMethod, onSelect }) {
+function ReceivePanel({ sendMethod, recvMethod, onSelect, activeRecv }) {
   const { lang } = useLang()
-  const regularMethods = RECEIVE_METHODS.filter(m => m.id !== 'wallet-recv')
-  const walletMethod   = RECEIVE_METHODS.find(m => m.id === 'wallet-recv')
+  const regularMethods = activeRecv.filter(m => m.id !== 'wallet-recv')
+  const walletMethod   = activeRecv.find(m => m.id === 'wallet-recv')
   const showWallet = sendMethod?.id === 'usdt-trc'
   return (
     <div style={{
@@ -274,9 +297,7 @@ function MobileMethodCard({ method, selected, disabled, onClick }) {
         textAlign: "center",
         background: isSelected
           ? "linear-gradient(135deg,rgba(0,210,255,0.13),rgba(124,92,252,0.09))"
-          : hov
-          ? "rgba(255,255,255,0.05)"
-          : "transparent",
+          : hov ? "rgba(255,255,255,0.05)" : "transparent",
         border: `1.5px solid ${
           isSelected ? "rgba(0,210,255,0.5)"
           : hov ? "rgba(255,255,255,0.12)"
@@ -326,27 +347,21 @@ function MobileMethodCard({ method, selected, disabled, onClick }) {
   )
 }
 
-// ══ تخطيط الموبايل: كنتينران جنباً إلى جنب + سهم واحد في المنتصف ══
-function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothReady, lang }) {
-  const sendMethods = [
-    ...SEND_METHODS.filter(m => !m.walletOnly),
-    SEND_METHODS.find(m => m.id === "wallet-usdt"),
-  ].filter(Boolean)
-
-  const recvMethods = RECEIVE_METHODS.filter(
-    m => m.id !== "wallet-recv" || sendMethod?.id === "usdt-trc"
+// ══ تخطيط الموبايل ══
+function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothReady, lang, activeSend, activeRecv }) {
+  const sendMethods = activeSend
+  const recvMethods = activeRecv.filter(
+    m => m.id !== 'wallet-recv' || sendMethod?.id === 'usdt-trc'
   )
 
   return (
     <>
-      {/* ══ الغلاف الرئيسي ══ */}
       <div style={{
         display: "flex", flexDirection: "row",
         alignItems: "stretch", gap: 0,
         position: "relative",
       }}>
-
-        {/* ══ SEND — يمين ══ */}
+        {/* SEND */}
         <div style={{
           flex: 1, minWidth: 0,
           background: "var(--card)",
@@ -365,18 +380,14 @@ function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothRe
               color: "var(--cyan)", fontFamily: "'JetBrains Mono',monospace",
             }}>SEND · ترسل</span>
           </div>
-          <div style={{
-            padding: "6px", display: "flex", flexDirection: "column",
-            gap: 4, flex: 1,
-          }}>
+          <div style={{ padding: "6px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
             {sendMethods.map(m => (
-              <MobileMethodCard key={m.id} method={m}
-                selected={sendMethod} disabled={false} onClick={onSend} />
+              <MobileMethodCard key={m.id} method={m} selected={sendMethod} disabled={false} onClick={onSend} />
             ))}
           </div>
         </div>
 
-        {/* ══ سهم التبادل — مركز واحد فقط ══ */}
+        {/* سهم التبادل */}
         <div style={{
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
@@ -399,7 +410,7 @@ function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothRe
           </div>
         </div>
 
-        {/* ══ RECV — يسار ══ */}
+        {/* RECV */}
         <div style={{
           flex: 1, minWidth: 0,
           background: "var(--card)",
@@ -418,10 +429,7 @@ function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothRe
               color: "var(--green)", fontFamily: "'JetBrains Mono',monospace",
             }}>RECV · تستلم</span>
           </div>
-          <div style={{
-            padding: "6px", display: "flex", flexDirection: "column",
-            gap: 4, flex: 1,
-          }}>
+          <div style={{ padding: "6px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
             {recvMethods.map(m => (
               <MobileMethodCard key={m.id} method={m}
                 selected={recvMethod}
@@ -430,10 +438,8 @@ function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothRe
             ))}
           </div>
         </div>
-
       </div>
 
-      {/* ══ مؤشر الانتقال ══ */}
       {bothReady && (
         <div style={{
           marginTop: 10,
@@ -463,9 +469,19 @@ function ExchangeSelector() {
   const { lang } = useLang()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
-  const [sendMethod, setSendMethod] = useState(() => SEND_METHODS.find(m => m.id === 'usdt-trc') ?? null)
+  const { activeSend, activeRecv } = useActiveMethods()
+
+  const [sendMethod, setSendMethod] = useState(null)
   const [recvMethod, setRecvMethod] = useState(null)
   const navigating = useRef(false)
+
+  // اختر أول وسيلة إرسال افتراضية بعد تحميل الوسائل
+  useEffect(() => {
+    if (activeSend.length > 0 && !sendMethod) {
+      const usdt = activeSend.find(m => m.id === 'usdt-trc')
+      setSendMethod(usdt ?? activeSend[0])
+    }
+  }, [activeSend])
 
   const handleSelectSend = (method) => {
     navigating.current = false
@@ -530,6 +546,8 @@ function ExchangeSelector() {
           onRecv={handleSelectRecv}
           bothReady={bothReady}
           lang={lang}
+          activeSend={activeSend}
+          activeRecv={activeRecv}
         />
         {styles}
       </div>
@@ -540,7 +558,7 @@ function ExchangeSelector() {
     <div>
       {hint}
       <div style={{ display: "flex", flexDirection: "row", gap: 16, alignItems: "stretch" }}>
-        <SendPanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectSend} />
+        <SendPanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectSend} activeSend={activeSend} />
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "center",
           justifyContent: "center", flexShrink: 0, gap: 6, paddingTop: 60,
@@ -569,7 +587,7 @@ function ExchangeSelector() {
             )}
           </div>
         </div>
-        <ReceivePanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectRecv} />
+        <ReceivePanel sendMethod={sendMethod} recvMethod={recvMethod} onSelect={handleSelectRecv} activeRecv={activeRecv} />
       </div>
       {bothReady && (
         <div style={{
