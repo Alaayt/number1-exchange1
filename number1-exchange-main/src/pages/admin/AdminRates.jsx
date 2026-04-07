@@ -1,40 +1,31 @@
 // src/pages/admin/AdminRates.jsx
 // ═══════════════════════════════════════════════════════════════
-// لوحة تحكم الأسعار الديناميكية — كل زوج له شراء وبيع
+// لوحة تحكم الأسعار — سعر شراء وبيع لكل قسم
 // ═══════════════════════════════════════════════════════════════
 import { useEffect, useState } from "react";
 import AdminLayout from "../../components/admin/AdminLayout";
-import { Save, RefreshCw, AlertCircle, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { Save, RefreshCw, AlertCircle, CheckCircle, TrendingUp, TrendingDown } from "lucide-react";
 import { adminAPI } from "../../services/api";
-
-// ── تعريف الخيارات المتاحة ──────────────────────────────────
-const FROM_OPTIONS = [
-  { value: 'EGP_VODAFONE', label: 'فودافون كاش (EGP)',  icon: '📱' },
-  { value: 'EGP_INSTAPAY', label: 'إنستا باي (EGP)',    icon: '💳' },
-  { value: 'EGP_FAWRY',    label: 'فاوري (EGP)',         icon: '🏪' },
-  { value: 'EGP_ORANGE',   label: 'أورنج كاش (EGP)',    icon: '🟠' },
-  { value: 'USDT',         label: 'USDT TRC20',          icon: '💵' },
-  { value: 'MGO',          label: 'MoneyGo USD',         icon: '💚' },
-  { value: 'INTERNAL',     label: 'محفظة داخلية',        icon: '🏦' },
-];
-
-const TO_OPTIONS = [
-  { value: 'USDT',     label: 'USDT TRC20',   icon: '💵' },
-  { value: 'MGO',      label: 'MoneyGo USD',  icon: '💚' },
-  { value: 'INTERNAL', label: 'محفظة داخلية', icon: '🏦' },
-];
-
-const getLabel = (options, value) => options.find(o => o.value === value)?.label || value;
-const getIcon  = (options, value) => options.find(o => o.value === value)?.icon  || '💱';
 
 // ── حساب هامش الربح ─────────────────────────────────────────
 function calcMargin(buyRate, sellRate) {
-  if (!buyRate || !sellRate || buyRate <= 0) return null;
-  return ((buyRate - sellRate) / buyRate * 100);
+  const b = parseFloat(buyRate);
+  const s = parseFloat(sellRate);
+  if (!b || !s || b <= 0) return null;
+  return ((b - s) / b * 100);
 }
 
 export default function AdminRates() {
-  const [pairs,   setPairs]   = useState([]);
+  const [rates,   setRates]   = useState({
+    egpBuyRate:      '',
+    egpSellRate:     '',
+    moneyGoBuyRate:  '',
+    moneyGoSellRate: '',
+    internalBuyRate: '',
+    internalSellRate:'',
+    minOrderUsdt:    '',
+    maxOrderUsdt:    '',
+  });
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
@@ -46,7 +37,16 @@ export default function AdminRates() {
     setLoading(true); setError('');
     try {
       const { data } = await adminAPI.getRates();
-      setPairs(data?.pairs || []);
+      setRates({
+        egpBuyRate:       data?.egpBuyRate       ?? data?.usdtBuyRate  ?? '',
+        egpSellRate:      data?.egpSellRate       ?? data?.usdtSellRate ?? '',
+        moneyGoBuyRate:   data?.moneyGoBuyRate    ?? data?.moneygoRate  ?? '',
+        moneyGoSellRate:  data?.moneyGoSellRate   ?? data?.moneygoSellRate ?? '',
+        internalBuyRate:  data?.internalBuyRate   ?? '',
+        internalSellRate: data?.internalSellRate  ?? '',
+        minOrderUsdt:     data?.minOrderUsdt      ?? '',
+        maxOrderUsdt:     data?.maxOrderUsdt      ?? '',
+      });
     } catch {
       setError('فشل تحميل الأسعار');
     } finally {
@@ -54,44 +54,29 @@ export default function AdminRates() {
     }
   };
 
-  const handleChange = (idx, field, value) => {
-    setPairs(prev => prev.map((p, i) =>
-      i === idx ? { ...p, [field]: field === 'enabled' ? value : value } : p
-    ));
-    setSaved(false);
-  };
-
-  const handleAdd = () => {
-    setPairs(prev => [...prev, {
-      from: 'USDT', to: 'MGO', buyRate: '', sellRate: '', label: '', enabled: true
-    }]);
-  };
-
-  const handleDelete = (idx) => {
-    setPairs(prev => prev.filter((_, i) => i !== idx));
+  const set = (field, value) => {
+    setRates(prev => ({ ...prev, [field]: value }));
     setSaved(false);
   };
 
   const handleSave = async () => {
-    // تحقق من صحة البيانات
-    for (const p of pairs) {
-      if (!p.from || !p.to) { setError('كل زوج يجب أن يحتوي على من وإلى'); return; }
-      if (parseFloat(p.buyRate) < 0 || parseFloat(p.sellRate) < 0) {
-        setError('الأسعار لا يمكن أن تكون سالبة'); return;
+    // تحقق
+    const nums = ['egpBuyRate','egpSellRate','moneyGoBuyRate','moneyGoSellRate','internalBuyRate','internalSellRate','minOrderUsdt','maxOrderUsdt'];
+    for (const k of nums) {
+      if (rates[k] !== '' && parseFloat(rates[k]) < 0) {
+        setError('القيم لا يمكن أن تكون سالبة'); return;
       }
     }
-
     setSaving(true); setError('');
     try {
-      const cleaned = pairs.map(p => ({
-        from:     p.from,
-        to:       p.to,
-        buyRate:  parseFloat(p.buyRate)  || 0,
-        sellRate: parseFloat(p.sellRate) || 0,
-        label:    p.label || '',
-        enabled:  p.enabled !== false,
-      }));
-      await adminAPI.saveRates({ pairs: cleaned });
+      const payload = {};
+      nums.forEach(k => { payload[k] = parseFloat(rates[k]) || 0; });
+      // backward compat
+      payload.usdtBuyRate      = payload.egpBuyRate;
+      payload.usdtSellRate     = payload.egpSellRate;
+      payload.moneygoRate      = payload.moneyGoBuyRate;
+      payload.moneygoSellRate  = payload.moneyGoSellRate;
+      await adminAPI.saveRates(payload);
       setSaved(true);
       setTimeout(() => setSaved(false), 4000);
     } catch (e) {
@@ -107,102 +92,272 @@ export default function AdminRates() {
     </AdminLayout>
   );
 
+  const egpMargin      = calcMargin(rates.egpBuyRate, rates.egpSellRate);
+  const moneyGoMargin  = calcMargin(rates.moneyGoBuyRate, rates.moneyGoSellRate);
+  const internalMargin = calcMargin(rates.internalBuyRate, rates.internalSellRate);
+
   return (
     <AdminLayout>
+      <style>{`
+        .ar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 480px) { .ar-grid { grid-template-columns: 1fr; } }
+        .ar-card {
+          background: #0d1117;
+          border: 1px solid #21262d;
+          border-radius: 14px;
+          padding: 22px 20px;
+          margin-bottom: 14px;
+          transition: border-color 0.2s;
+        }
+        .ar-card:hover { border-color: #30363d; }
+        .ar-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 18px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid #21262d;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .ar-card-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 15px;
+          font-weight: 700;
+          color: #e6edf3;
+          font-family: 'Cairo', sans-serif;
+        }
+        .ar-section-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 17px;
+          flex-shrink: 0;
+        }
+        .ar-field-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .ar-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: 'Cairo', sans-serif;
+          letter-spacing: 0.3px;
+        }
+        .ar-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+        .ar-input {
+          width: 100%;
+          padding: 12px 14px;
+          background: #161b22;
+          border: 1.5px solid #21262d;
+          border-radius: 10px;
+          color: #e6edf3;
+          font-size: 18px;
+          font-weight: 700;
+          outline: none;
+          transition: all 0.15s;
+          text-align: center;
+          font-family: 'JetBrains Mono', monospace;
+          box-sizing: border-box;
+          -moz-appearance: textfield;
+        }
+        .ar-input::-webkit-outer-spin-button,
+        .ar-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .ar-input.buy:focus  { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.15); color: #34d399; }
+        .ar-input.sell:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.15); color: #f87171; }
+        .ar-input.limit:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); color: #fbbf24; }
+        .ar-input::placeholder { color: #484f58; font-size: 15px; }
+        .ar-margin-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 700;
+          font-family: 'JetBrains Mono', monospace;
+        }
+        .ar-sub {
+          font-size: 11px;
+          color: #6e7681;
+          margin-top: 4px;
+          font-family: 'Cairo', sans-serif;
+          text-align: center;
+        }
+      `}</style>
 
-      {/* Header */}
-      <div style={S.header}>
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 style={S.title}>الأسعار</h2>
-          <p style={S.sub}>تحكم كامل في أسعار الشراء والبيع لكل زوج</p>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#e6edf3', margin: 0, fontFamily: 'Cairo, sans-serif' }}>الأسعار</h2>
+          <p style={{ fontSize: 13, color: '#6e7681', marginTop: 3, fontFamily: 'Cairo, sans-serif' }}>تحديث أسعار الصرف لجميع العمليات</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button style={S.iconBtn} onClick={load} title="تحديث">
             <RefreshCw size={15} />
           </button>
-          <button style={S.addBtn} onClick={handleAdd}>
-            <Plus size={15} /> <span>إضافة زوج</span>
-          </button>
           <button style={S.saveBtn} onClick={handleSave} disabled={saving}>
-            <Save size={15} /> <span>{saving ? 'جاري الحفظ...' : 'حفظ الأسعار'}</span>
+            <Save size={15} />
+            <span>{saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}</span>
           </button>
         </div>
       </div>
 
-      {/* Alerts */}
+      {/* ── Alerts ── */}
       {error && (
-        <div style={{ ...S.alert, background: '#3d0a0a', color: '#f85149' }}>
+        <div style={{ ...S.alert, background: '#3d0a0a', color: '#f85149', marginBottom: 16 }}>
           <AlertCircle size={15} /> {error}
         </div>
       )}
       {saved && (
-        <div style={{ ...S.alert, background: '#064e3b', color: '#34d399' }}>
+        <div style={{ ...S.alert, background: '#064e3b', color: '#34d399', marginBottom: 16 }}>
           <CheckCircle size={15} /> تم حفظ جميع الأسعار بنجاح ✅
         </div>
       )}
 
-      {/* Legend */}
-      <div style={S.legend}>
-        <div style={S.legendItem}>
-          <span style={{ ...S.legendDot, background: '#059669' }} />
-          <span style={{ color: '#6e7681', fontSize: 12 }}>
-            <b style={{ color: '#c9d1d9' }}>سعر الشراء (BUY)</b> — العميل يدفع "من" ويستلم "إلى"
-          </span>
-        </div>
-        <div style={S.legendItem}>
-          <span style={{ ...S.legendDot, background: '#dc2626' }} />
-          <span style={{ color: '#6e7681', fontSize: 12 }}>
-            <b style={{ color: '#c9d1d9' }}>سعر البيع (SELL)</b> — العميل يرسل "إلى" ويستلم "من"
-          </span>
-        </div>
-      </div>
+      {/* ══════════════════════════════════════
+          القسم ١: USDT ↔ جنيه مصري (EGP)
+      ══════════════════════════════════════ */}
+      <RateSection
+        icon="🇪🇬"
+        iconBg="rgba(0,180,100,0.12)"
+        title="USDT ↔ جنيه مصري (EGP)"
+        subtitle="يُطبَّق على: فودافون كاش · إنستا باي · فاوري · أورنج كاش"
+        subtitleColor="#6e7681"
+        margin={egpMargin}
+        buyLabel="سعر شراء USDT"
+        buyHint="المستخدم يرسل EGP ← نعطيه USDT بهذا السعر"
+        buyValue={rates.egpBuyRate}
+        onBuyChange={v => set('egpBuyRate', v)}
+        sellLabel="سعر بيع USDT"
+        sellHint="المستخدم يرسل USDT ← نعطيه EGP بهذا السعر"
+        sellValue={rates.egpSellRate}
+        onSellChange={v => set('egpSellRate', v)}
+        unit="EGP"
+      />
 
-      {/* Table Header */}
-      <div style={S.tableHeader}>
-        <div style={{ flex: 2 }}>من</div>
-        <div style={{ flex: 2 }}>إلى</div>
-        <div style={{ flex: 2, color: '#059669' }}>🟢 سعر الشراء (BUY)</div>
-        <div style={{ flex: 2, color: '#dc2626' }}>🔴 سعر البيع (SELL)</div>
-        <div style={{ flex: 1.5, color: '#f59e0b' }}>هامش الربح</div>
-        <div style={{ flex: 1 }}>مفعّل</div>
-        <div style={{ width: 36 }}></div>
-      </div>
+      {/* ══════════════════════════════════════
+          القسم ٢: USDT ↔ MoneyGo USD
+      ══════════════════════════════════════ */}
+      <RateSection
+        icon="💚"
+        iconBg="rgba(5,150,105,0.12)"
+        title="USDT ↔ MoneyGo USD"
+        subtitle="كم USDT يكافئ 1 دولار MoneyGo"
+        subtitleColor="#6e7681"
+        margin={moneyGoMargin}
+        buyLabel="سعر شراء MoneyGo"
+        buyHint="المستخدم يرسل MoneyGo ← نعطيه USDT"
+        buyValue={rates.moneyGoBuyRate}
+        onBuyChange={v => set('moneyGoBuyRate', v)}
+        sellLabel="سعر بيع MoneyGo"
+        sellHint="المستخدم يرسل USDT ← نعطيه MoneyGo"
+        sellValue={rates.moneyGoSellRate}
+        onSellChange={v => set('moneyGoSellRate', v)}
+        unit="USDT"
+      />
 
-      {/* Pairs */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {pairs.map((pair, idx) => {
-          const margin      = calcMargin(parseFloat(pair.buyRate), parseFloat(pair.sellRate));
-          const hasError    = parseFloat(pair.sellRate) > parseFloat(pair.buyRate);
-          const lowMargin   = margin !== null && margin < 0.5 && margin >= 0;
+      {/* ══════════════════════════════════════
+          القسم ٣: USDT داخلي (المحفظة)
+      ══════════════════════════════════════ */}
+      <RateSection
+        icon="🏦"
+        iconBg="rgba(37,99,235,0.12)"
+        title="USDT داخلي (المحفظة الداخلية)"
+        subtitle="سعر التحويل داخل منصة Number1"
+        subtitleColor="#6e7681"
+        margin={internalMargin}
+        buyLabel="سعر شراء داخلي"
+        buyHint="شراء USDT عبر المحفظة الداخلية"
+        buyValue={rates.internalBuyRate}
+        onBuyChange={v => set('internalBuyRate', v)}
+        sellLabel="سعر بيع داخلي"
+        sellHint="بيع USDT عبر المحفظة الداخلية"
+        sellValue={rates.internalSellRate}
+        onSellChange={v => set('internalSellRate', v)}
+        unit="USDT"
+      />
 
-          return (
-            <PairRow
-              key={idx}
-              pair={pair}
-              idx={idx}
-              margin={margin}
-              hasError={hasError}
-              lowMargin={lowMargin}
-              onChange={handleChange}
-              onDelete={handleDelete}
-            />
-          );
-        })}
-
-        {pairs.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#484f58', fontSize: 14 }}>
-            لا توجد أزواج — اضغط "إضافة زوج" للبدء
+      {/* ══════════════════════════════════════
+          القسم ٤: حدود المعاملات
+      ══════════════════════════════════════ */}
+      <div className="ar-card">
+        <div className="ar-card-header">
+          <div className="ar-card-title">
+            <div className="ar-section-icon" style={{ background: 'rgba(245,158,11,0.12)', fontSize: 17 }}>⚖️</div>
+            <div>
+              <div>حدود المعاملات</div>
+              <div style={{ fontSize: 12, color: '#6e7681', fontWeight: 400, marginTop: 2 }}>
+                أقل وأعلى مبلغ USDT مقبول لأي عملية
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        <div className="ar-grid">
+          {/* الحد الأدنى */}
+          <div className="ar-field-wrap">
+            <div className="ar-label" style={{ color: '#fbbf24' }}>
+              <span className="ar-dot" style={{ background: '#f59e0b' }} />
+              الحد الأدنى للطلب
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="number"
+                className="ar-input limit"
+                placeholder="مثال: 10"
+                value={rates.minOrderUsdt}
+                onChange={e => set('minOrderUsdt', e.target.value)}
+              />
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#484f58', fontFamily: 'monospace', fontWeight: 700 }}>USDT</span>
+            </div>
+            <div className="ar-sub">أقل مبلغ USDT مقبول لأي عملية</div>
+          </div>
+
+          {/* الحد الأقصى */}
+          <div className="ar-field-wrap">
+            <div className="ar-label" style={{ color: '#fbbf24' }}>
+              <span className="ar-dot" style={{ background: '#f59e0b' }} />
+              الحد الأقصى للطلب
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="number"
+                className="ar-input limit"
+                placeholder="مثال: 5000"
+                value={rates.maxOrderUsdt}
+                onChange={e => set('maxOrderUsdt', e.target.value)}
+              />
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#484f58', fontFamily: 'monospace', fontWeight: 700 }}>USDT</span>
+            </div>
+            <div className="ar-sub">أعلى مبلغ USDT مقبول لأي عملية</div>
+          </div>
+        </div>
       </div>
 
-      {/* Bottom save */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingBottom: 24 }}>
-        <button style={S.addBtn} onClick={handleAdd}>
-          <Plus size={15} /> <span>إضافة زوج جديد</span>
-        </button>
-        <button style={{ ...S.saveBtn, padding: '11px 28px', fontSize: 14 }} onClick={handleSave} disabled={saving}>
-          <Save size={16} /> <span>{saving ? 'جاري الحفظ...' : 'حفظ كل التغييرات'}</span>
+      {/* ── Bottom Save ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, paddingBottom: 24 }}>
+        <button
+          style={{ ...S.saveBtn, padding: '12px 32px', fontSize: 14 }}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Save size={16} />
+          <span>{saving ? 'جاري الحفظ...' : 'حفظ كل التغييرات'}</span>
         </button>
       </div>
 
@@ -210,153 +365,154 @@ export default function AdminRates() {
   );
 }
 
-// ── PairRow Component ────────────────────────────────────────
-function PairRow({ pair, idx, margin, hasError, lowMargin, onChange, onDelete }) {
+// ══════════════════════════════════════════════════════════════
+// RateSection — قسم موحد لكل زوج (شراء + بيع جنباً إلى جنب)
+// ══════════════════════════════════════════════════════════════
+function RateSection({
+  icon, iconBg, title, subtitle, subtitleColor,
+  margin,
+  buyLabel, buyHint, buyValue, onBuyChange,
+  sellLabel, sellHint, sellValue, onSellChange,
+  unit,
+}) {
+  const hasError  = parseFloat(sellValue) > parseFloat(buyValue) && buyValue !== '' && sellValue !== '';
+  const lowMargin = margin !== null && margin < 0.5 && margin >= 0;
+
   return (
-    <div style={{
-      ...S.row,
-      borderColor: hasError ? '#dc262644' : lowMargin ? '#f59e0b44' : '#21262d',
-      background: hasError ? 'rgba(220,38,38,0.04)' : pair.enabled === false ? 'rgba(255,255,255,0.01)' : '#161b22',
-      opacity: pair.enabled === false ? 0.6 : 1,
+    <div className="ar-card" style={{
+      borderColor: hasError ? 'rgba(220,38,38,0.35)' : lowMargin ? 'rgba(245,158,11,0.3)' : '#21262d',
     }}>
+      {/* Card Header */}
+      <div className="ar-card-header">
+        <div className="ar-card-title">
+          <div className="ar-section-icon" style={{ background: iconBg }}>
+            {icon}
+          </div>
+          <div>
+            <div>{title}</div>
+            <div style={{ fontSize: 12, color: subtitleColor, fontWeight: 400, marginTop: 2 }}>
+              {subtitle}
+            </div>
+          </div>
+        </div>
 
-      {/* من */}
-      <div style={{ flex: 2 }}>
-        <select
-          value={pair.from}
-          onChange={e => onChange(idx, 'from', e.target.value)}
-          style={S.select}
-        >
-          {FROM_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* إلى */}
-      <div style={{ flex: 2 }}>
-        <select
-          value={pair.to}
-          onChange={e => onChange(idx, 'to', e.target.value)}
-          style={S.select}
-        >
-          {TO_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* سعر الشراء */}
-      <div style={{ flex: 2 }}>
-        <RateInput
-          value={pair.buyRate}
-          color="#059669"
-          placeholder="0.00"
-          onChange={v => onChange(idx, 'buyRate', v)}
-        />
-      </div>
-
-      {/* سعر البيع */}
-      <div style={{ flex: 2 }}>
-        <RateInput
-          value={pair.sellRate}
-          color={hasError ? '#dc2626' : '#dc2626'}
-          placeholder="0.00"
-          onChange={v => onChange(idx, 'sellRate', v)}
-        />
-      </div>
-
-      {/* هامش الربح */}
-      <div style={{ flex: 1.5, display: 'flex', alignItems: 'center' }}>
-        {margin !== null ? (
-          <span style={{
-            fontSize: 12, fontWeight: 700, fontFamily: 'monospace',
-            padding: '3px 10px', borderRadius: 20,
-            background: hasError  ? 'rgba(220,38,38,0.15)'
-                       : lowMargin ? 'rgba(245,158,11,0.15)'
-                       : 'rgba(5,150,105,0.15)',
+        {/* هامش الربح */}
+        {margin !== null && (
+          <div className="ar-margin-badge" style={{
+            background: hasError  ? 'rgba(220,38,38,0.12)'
+                       : lowMargin ? 'rgba(245,158,11,0.12)'
+                       : 'rgba(5,150,105,0.12)',
             color:      hasError  ? '#f87171'
                        : lowMargin ? '#fbbf24'
                        : '#34d399',
-            border: `1px solid ${hasError ? '#dc262633' : lowMargin ? '#f59e0b33' : '#05966933'}`,
+            border: `1px solid ${hasError ? 'rgba(220,38,38,0.25)' : lowMargin ? 'rgba(245,158,11,0.25)' : 'rgba(5,150,105,0.25)'}`,
           }}>
-            {hasError ? '⚠ خطأ' : `${margin.toFixed(2)}%`}
-          </span>
-        ) : (
-          <span style={{ color: '#484f58', fontSize: 12 }}>—</span>
+            {hasError
+              ? <><AlertCircle size={10} /> سعر البيع أعلى من الشراء!</>
+              : lowMargin
+              ? <><TrendingDown size={10} /> هامش منخفض {margin.toFixed(2)}%</>
+              : <><TrendingUp size={10} /> هامش {margin.toFixed(2)}%</>
+            }
+          </div>
         )}
       </div>
 
-      {/* مفعّل */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-        <input
-          type="checkbox"
-          checked={pair.enabled !== false}
-          onChange={e => onChange(idx, 'enabled', e.target.checked)}
-          style={{ width: 16, height: 16, accentColor: '#2563eb', cursor: 'pointer' }}
-        />
+      {/* الحقلان جنباً إلى جنب */}
+      <div className="ar-grid">
+        {/* سعر الشراء */}
+        <div className="ar-field-wrap">
+          <div className="ar-label" style={{ color: '#34d399' }}>
+            <span className="ar-dot" style={{ background: '#059669' }} />
+            🟢 {buyLabel}
+          </div>
+          <div style={{ position: 'relative' }}>
+            <RateInput
+              value={buyValue}
+              colorClass="buy"
+              placeholder="0.00"
+              onChange={onBuyChange}
+            />
+            <UnitBadge unit={unit} />
+          </div>
+          <div className="ar-sub">{buyHint}</div>
+        </div>
+
+        {/* سعر البيع */}
+        <div className="ar-field-wrap">
+          <div className="ar-label" style={{ color: hasError ? '#f87171' : '#f87171' }}>
+            <span className="ar-dot" style={{ background: '#dc2626' }} />
+            🔴 {sellLabel}
+          </div>
+          <div style={{ position: 'relative' }}>
+            <RateInput
+              value={sellValue}
+              colorClass="sell"
+              placeholder="0.00"
+              onChange={onSellChange}
+              hasError={hasError}
+            />
+            <UnitBadge unit={unit} />
+          </div>
+          <div className="ar-sub">{sellHint}</div>
+        </div>
       </div>
-
-      {/* حذف */}
-      <button
-        onClick={() => onDelete(idx)}
-        style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid #21262d', background: 'transparent', color: '#6e7681', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = '#dc2626'; e.currentTarget.style.color = '#f87171'; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = '#21262d'; e.currentTarget.style.color = '#6e7681'; }}
-      >
-        <Trash2 size={14} />
-      </button>
-
     </div>
   );
 }
 
 // ── RateInput ────────────────────────────────────────────────
-function RateInput({ value, color, placeholder, onChange }) {
-  const [focused, setFocused] = useState(false);
+function RateInput({ value, colorClass, placeholder, onChange, hasError }) {
   return (
     <input
       type="number"
       step="0.001"
       min="0"
-      value={value}
+      className={`ar-input ${colorClass}`}
       placeholder={placeholder}
+      value={value}
       onChange={e => onChange(e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={{
-        width: '100%',
-        padding: '9px 10px',
-        background: '#0d1117',
-        border: `1.5px solid ${focused ? color : '#21262d'}`,
-        borderRadius: 8,
-        color: focused ? color : '#e6edf3',
-        fontSize: 16,
-        fontWeight: 700,
-        outline: 'none',
-        transition: 'all 0.15s',
-        boxShadow: focused ? `0 0 0 3px ${color}22` : 'none',
-        boxSizing: 'border-box',
-        textAlign: 'center',
-        fontFamily: 'monospace',
-      }}
+      style={hasError ? { borderColor: '#dc2626', color: '#f87171' } : {}}
     />
+  );
+}
+
+// ── UnitBadge ────────────────────────────────────────────────
+function UnitBadge({ unit }) {
+  return (
+    <span style={{
+      position: 'absolute',
+      left: 12,
+      top: '50%',
+      transform: 'translateY(-50%)',
+      fontSize: 10,
+      color: '#484f58',
+      fontFamily: 'monospace',
+      fontWeight: 700,
+      pointerEvents: 'none',
+    }}>
+      {unit}
+    </span>
   );
 }
 
 // ── Styles ───────────────────────────────────────────────────
 const S = {
-  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 },
-  title:       { fontSize: 20, fontWeight: 700, color: '#e6edf3', margin: 0 },
-  sub:         { fontSize: 13, color: '#6e7681', marginTop: 3 },
-  iconBtn:     { display: 'flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, border: '1px solid #21262d', borderRadius: 8, background: '#161b22', color: '#8b949e', cursor: 'pointer' },
-  addBtn:      { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: '1px solid #21262d', background: '#161b22', color: '#c9d1d9', cursor: 'pointer', fontSize: 13, fontWeight: 600 },
-  saveBtn:     { display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 600 },
-  alert:       { display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 },
-  legend:      { display: 'flex', gap: 24, marginBottom: 12, padding: '10px 16px', background: '#161b22', borderRadius: 8, border: '1px solid #21262d', flexWrap: 'wrap' },
-  legendItem:  { display: 'flex', alignItems: 'center', gap: 8 },
-  legendDot:   { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
-  tableHeader: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', fontSize: 11, fontWeight: 700, color: '#6e7681', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 4 },
-  row:         { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', border: '1px solid', borderRadius: 10, transition: 'all 0.15s' },
-  select:      { width: '100%', padding: '8px 10px', background: '#0d1117', border: '1px solid #21262d', borderRadius: 8, color: '#c9d1d9', fontSize: 13, outline: 'none', cursor: 'pointer', fontFamily: "'Tajawal',sans-serif" },
+  iconBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38,
+    border: '1px solid #21262d', borderRadius: 8,
+    background: '#161b22', color: '#8b949e', cursor: 'pointer',
+  },
+  saveBtn: {
+    display: 'flex', alignItems: 'center', gap: 7,
+    padding: '9px 20px', borderRadius: 8,
+    border: 'none', background: '#2563eb', color: '#fff',
+    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    fontFamily: 'Cairo, sans-serif',
+  },
+  alert: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '11px 14px', borderRadius: 8, fontSize: 13,
+    fontFamily: 'Cairo, sans-serif',
+  },
 };
