@@ -703,4 +703,61 @@ router.get('/telegram/webhook-info', async (req, res) => {
   }
 });
 
+
+// ─── نموذج وسائل التبادل (إرسال + استلام) ────────────────────
+const exchangeMethodsSchema = new mongoose.Schema({
+  sendMethods:    { type: Array, default: [] }, // وسائل الإرسال المفعّلة
+  receiveMethods: { type: Array, default: [] }, // وسائل الاستلام المفعّلة
+}, { timestamps: true })
+ 
+const ExchangeMethods = mongoose.models.ExchangeMethods ||
+  mongoose.model('ExchangeMethods', exchangeMethodsSchema)
+ 
+// الوسائل الافتراضية
+const DEFAULT_SEND_METHODS = [
+  { id: 'vodafone',    enabled: true  },
+  { id: 'instapay',    enabled: true  },
+  { id: 'fawry',       enabled: true  },
+  { id: 'orange',      enabled: true  },
+  { id: 'usdt-trc',    enabled: true  },
+  { id: 'mgo-send',    enabled: true  },
+  { id: 'wallet-usdt', enabled: true  },
+]
+ 
+const DEFAULT_RECEIVE_METHODS = [
+  { id: 'mgo-recv',    enabled: true },
+  { id: 'usdt-recv',   enabled: true },
+  { id: 'wallet-recv', enabled: true },
+]
+ 
+// ─── GET /api/admin/exchange-methods ──────────────────────────
+router.get('/exchange-methods', async (req, res) => {
+  try {
+    let doc = await ExchangeMethods.findOne()
+    if (!doc) {
+      doc = await ExchangeMethods.create({
+        sendMethods:    DEFAULT_SEND_METHODS,
+        receiveMethods: DEFAULT_RECEIVE_METHODS,
+      })
+    }
+    res.json({ success: true, sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
+ 
+// ─── PUT /api/admin/exchange-methods ──────────────────────────
+router.put('/exchange-methods', async (req, res) => {
+  try {
+    const { sendMethods, receiveMethods } = req.body
+    const doc = await ExchangeMethods.findOneAndUpdate(
+      {},
+      { $set: { sendMethods: sendMethods || [], receiveMethods: receiveMethods || [] } },
+      { new: true, upsert: true }
+    )
+    res.json({ success: true, message: 'تم الحفظ.', sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
 module.exports = router;

@@ -23,10 +23,8 @@ function MethodIcon({ method, size = 32 }) {
   )
 }
 
-// ── قواعد التوافق — مبنية على RATE_MAP بشكل صريح ──────────
 function isCompatible(send, recv) {
   if (!send || !recv) return true
-  // إذا كان في RATE_MAP[send.id][recv.id] → متوافقان
   const COMPATIBLE = {
     'vodafone':    ['mgo-recv', 'usdt-recv'],
     'instapay':    ['mgo-recv', 'usdt-recv'],
@@ -47,10 +45,10 @@ function SendRow({ method, selected, onSelect, disabled }) {
       <div className="es-row-info">
         <span className="es-row-name">{method.name}</span>
         <span className="es-row-sub">
-          {method.type === 'egp' ? 'EGP · جنيه مصري'
-            : method.type === 'wallet' ? 'محفظة داخلية · USDT'
-            : method.type === 'moneygo' ? 'MoneyGo USD'
-            : `${method.symbol} · رقمي`}
+          {method.type === 'egp'     ? 'EGP · جنيه مصري'
+           : method.type === 'wallet'  ? 'محفظة داخلية · USDT'
+           : method.type === 'moneygo' ? 'MoneyGo USD'
+           : `${method.symbol} · رقمي`}
         </span>
       </div>
     </div>
@@ -59,12 +57,9 @@ function SendRow({ method, selected, onSelect, disabled }) {
 
 function RecvRow({ method, selected, onSelect, disabled, rates, sendId }) {
   const isSelected = selected?.id === method.id
-  // ── السعر من rateEngine مباشرةً ──
-  const rateInfo = (sendId && rates) ? getRate(sendId, method.id, rates) : null
-  const rateText = rateInfo
-    ? (rateInfo.divide
-        ? `1 ${method.symbol} = ${rateInfo.rate.toFixed(2)} EGP`
-        : `× ${rateInfo.rate.toFixed(4)}`)
+  const rateInfo   = (sendId && rates) ? getRate(sendId, method.id, rates) : null
+  const rateText   = rateInfo
+    ? (rateInfo.divide ? `1 ${method.symbol} = ${rateInfo.rate.toFixed(2)} EGP` : `× ${rateInfo.rate.toFixed(4)}`)
     : '—'
 
   return (
@@ -77,8 +72,7 @@ function RecvRow({ method, selected, onSelect, disabled, rates, sendId }) {
       <div className="es-row-rate">
         {rateInfo
           ? <span className="es-rate-val">{rateText}</span>
-          : <span className="es-rate-dash">—</span>
-        }
+          : <span className="es-rate-dash">—</span>}
       </div>
     </div>
   )
@@ -86,17 +80,45 @@ function RecvRow({ method, selected, onSelect, disabled, rates, sendId }) {
 
 export default function ExchangeSelect() {
   const navigate = useNavigate()
-  const [sendMethod, setSendMethod] = useState(null)
-  const [recvMethod, setRecvMethod] = useState(null)
-  const [rates,      setRates]      = useState(null)
-  const [loading,    setLoading]    = useState(true)
+  const [sendMethod,    setSendMethod]    = useState(null)
+  const [recvMethod,    setRecvMethod]    = useState(null)
+  const [rates,         setRates]         = useState(null)
+  const [loading,       setLoading]       = useState(true)
+
+  // ── الوسائل المفعّلة من الأدمن ─────────────────
+  const [activeSend,    setActiveSend]    = useState(SEND_METHODS)
+  const [activeRecv,    setActiveRecv]    = useState(RECEIVE_METHODS)
 
   useEffect(() => {
-    fetch(`${API}/api/public/rates`)
-      .then(r => r.json())
-      .then(d => { if (d.success) setRates(d) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    const fetchAll = async () => {
+      try {
+        // ١. جلب الأسعار
+        const ratesRes = await fetch(`${API}/api/public/rates`)
+        const ratesData = await ratesRes.json()
+        if (ratesData.success) setRates(ratesData)
+
+        // ٢. جلب الوسائل المفعّلة من الأدمن
+        const methodsRes = await fetch(`${API}/api/public/exchange-methods`)
+        const methodsData = await methodsRes.json()
+        if (methodsData.success) {
+          // فلترة وسائل الإرسال المفعّلة
+          const enabledSendIds = methodsData.sendMethods
+            .filter(m => m.enabled)
+            .map(m => m.id)
+          const enabledRecvIds = methodsData.receiveMethods
+            .filter(m => m.enabled)
+            .map(m => m.id)
+
+          setActiveSend(SEND_METHODS.filter(m => enabledSendIds.includes(m.id)))
+          setActiveRecv(RECEIVE_METHODS.filter(m => enabledRecvIds.includes(m.id)))
+        }
+      } catch {
+        // في حالة فشل الاتصال نُظهر كل الوسائل
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAll()
   }, [])
 
   const handleSendSelect = (m) => {
@@ -110,11 +132,6 @@ export default function ExchangeSelect() {
   }
 
   const canContinue = sendMethod && recvMethod && isCompatible(sendMethod, recvMethod)
-
-  const handleContinue = () => {
-    if (!canContinue) return
-    navigate(`/exchange/form?from=${sendMethod.id}&to=${recvMethod.id}`)
-  }
 
   return (
     <div className="es-page">
@@ -142,25 +159,36 @@ export default function ExchangeSelect() {
         ) : (
           <div className="es-panels">
             <div className="es-panel">
-              <div className="es-panel-header"><span className="es-panel-title">أنت ترسل</span></div>
+              <div className="es-panel-header"><span className="es-panel-title">أنت ترسل</span><span className="es-panel-subtitle">اختر وسيلة الدفع</span></div>
               <div className="es-panel-body">
-                {SEND_METHODS.map(m => (
-                  <SendRow key={m.id} method={m} selected={sendMethod} onSelect={handleSendSelect} disabled={recvMethod ? !isCompatible(m, recvMethod) : false} />
-                ))}
+                {activeSend.length === 0
+                  ? <div className="es-empty">لا توجد وسائل إرسال متاحة حالياً</div>
+                  : activeSend.map(m => (
+                    <SendRow key={m.id} method={m} selected={sendMethod} onSelect={handleSendSelect}
+                      disabled={recvMethod ? !isCompatible(m, recvMethod) : false} />
+                  ))
+                }
               </div>
             </div>
+
             <div className="es-divider-arrow">
               <div className="es-arrow-btn"><FlowDots /></div>
             </div>
+
             <div className="es-panel">
               <div className="es-panel-header">
                 <span className="es-panel-title">أنت تستلم</span>
-                <span className="es-panel-col-label">السعر</span>
+                <span className="es-panel-col-label">اختر وجهة الاستلام</span>
               </div>
               <div className="es-panel-body">
-                {RECEIVE_METHODS.map(m => (
-                  <RecvRow key={m.id} method={m} selected={recvMethod} onSelect={handleRecvSelect} disabled={sendMethod ? !isCompatible(sendMethod, m) : false} rates={rates} sendId={sendMethod?.id} />
-                ))}
+                {activeRecv.length === 0
+                  ? <div className="es-empty">لا توجد وسائل استلام متاحة حالياً</div>
+                  : activeRecv.map(m => (
+                    <RecvRow key={m.id} method={m} selected={recvMethod} onSelect={handleRecvSelect}
+                      disabled={sendMethod ? !isCompatible(sendMethod, m) : false}
+                      rates={rates} sendId={sendMethod?.id} />
+                  ))
+                }
               </div>
             </div>
           </div>
@@ -176,7 +204,8 @@ export default function ExchangeSelect() {
               <span>{recvMethod.name}</span>
             </div>
           )}
-          <button onClick={handleContinue} disabled={!canContinue} className="es-continue-btn">
+          <button onClick={() => canContinue && navigate(`/exchange/form?from=${sendMethod.id}&to=${recvMethod.id}`)}
+            disabled={!canContinue} className="es-continue-btn">
             {canContinue ? 'متابعة →' : 'اختر وسيلة الإرسال والاستلام'}
           </button>
         </div>
@@ -205,11 +234,13 @@ const CSS = `
   .es-panel { background: var(--card); border: 1px solid var(--border-1); border-radius: 16px; overflow: hidden; }
   .es-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid var(--border-1); background: rgba(255,255,255,0.02); }
   .es-panel-title { font-size: 0.82rem; font-weight: 800; color: var(--text-2); font-family: 'JetBrains Mono',monospace; letter-spacing: 0.5px; }
+  .es-panel-subtitle { font-size: 0.7rem; color: var(--text-3); }
   .es-panel-col-label { font-size: 0.72rem; color: var(--text-3); font-family: 'JetBrains Mono',monospace; }
   .es-panel-body { overflow-y: auto; max-height: 420px; }
   .es-panel-body::-webkit-scrollbar { width: 4px; }
   .es-panel-body::-webkit-scrollbar-track { background: transparent; }
   .es-panel-body::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+  .es-empty { padding: 32px 16px; text-align: center; color: var(--text-3); font-size: 0.84rem; }
   .es-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border-1); transition: background 0.12s; }
   .es-row:last-child { border-bottom: none; }
   .es-row:hover:not(.es-row--disabled):not(.es-row--active) { background: rgba(255,255,255,0.03); }

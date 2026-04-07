@@ -42,9 +42,8 @@ export const ordersAPI = {
 }
 
 // ─── Public Payment Methods (للمستخدم) ───────────────────────
-// يُستخدم في صفحة الـ Exchange عشان يعرض الوسائل المفعّلة فقط
 export const paymentAPI = {
-getMethods: () => request('/public/payment-methods'),   // GET — بدون auth
+  getMethods: () => request('/public/payment-methods'),
 }
 
 // ─── Admin ────────────────────────────────────────────────────
@@ -62,47 +61,35 @@ export const adminAPI = {
   blockUser:   (id, body)    => request(`/admin/users/${id}/block`, { method: 'PATCH', body: JSON.stringify(body) }),
 
   // Rates
-  getRates: ()     => request('/admin/rates'),
+  getRates:  ()     => request('/admin/rates'),
   saveRates: (body) => request('/admin/rates', { method: 'PUT', body: JSON.stringify(body) }),
 
   // Settings
-  getSettings: ()     => request('/admin/settings'),
+  getSettings:  ()     => request('/admin/settings'),
   saveSettings: (body) => request('/admin/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ── Payment Methods ─────────────────────────────────────────
-  // الأدمن يتحكم في وسائل الدفع وأرقام الاستلام
+  // Payment Methods
   getPaymentMethods:  ()     => request('/admin/payment-methods'),
   savePaymentMethods: (body) => request('/admin/payment-methods', { method: 'PUT', body: JSON.stringify(body) }),
 
-  // ── Wallet Deposit Addresses (منفصلة عن وسائل الدفع) ───────
+  // Wallet Deposit Addresses
   getWalletDepositAddresses:  ()     => request('/admin/wallet-deposit-addresses'),
   saveWalletDepositAddresses: (body) => request('/admin/wallet-deposit-addresses', { method: 'PUT', body: JSON.stringify(body) }),
+
+  // ── Exchange Methods (وسائل الإرسال والاستلام) ──────────────
+  getExchangeMethods:  ()     => request('/admin/exchange-methods'),
+  saveExchangeMethods: (body) => request('/admin/exchange-methods', { method: 'PUT', body: JSON.stringify(body) }),
 }
 
-// ─── Wallet ───────────────────────────────────────────────
+// ─── Wallet ───────────────────────────────────────────────────
 export const walletAPI = {
-  // جلب الرصيد + آخر المعاملات
-  getWallet: () =>
-    request('/wallet'),
+  getWallet:       ()            => request('/wallet'),
+  getTransactions: (params = {}) => request(`/wallet/transactions?${new URLSearchParams(params)}`),
+  withdraw:        (body)        => request('/wallet/withdraw', { method: 'POST', body: JSON.stringify(body) }),
 
-  // كل المعاملات
-  getTransactions: (params = {}) =>
-    request(`/wallet/transactions?${new URLSearchParams(params)}`),
-
-  // طلب سحب
-  withdraw: (body) =>
-    request('/wallet/withdraw', { method: 'POST', body: JSON.stringify(body) }),
-
-  // ── Admin ────────────────────────────────────
-  getAllWallets: () =>
-    request('/admin/wallets'),
-
-  getUserWallet: (userId) =>
-    request(`/admin/wallets/${userId}`),
-
-  adminDeposit: (userId, body) =>
-    request(`/admin/wallets/${userId}/deposit`, { method: 'POST', body: JSON.stringify(body) }),
-
-  toggleWallet: (userId) =>
-    request(`/admin/wallets/${userId}/toggle`, { method: 'PATCH' }),
+  // Admin
+  getAllWallets:  ()           => request('/admin/wallets'),
+  getUserWallet: (userId)     => request(`/admin/wallets/${userId}`),
+  adminDeposit:  (userId, body) => request(`/admin/wallets/${userId}/deposit`, { method: 'POST', body: JSON.stringify(body) }),
+  toggleWallet:  (userId)     => request(`/admin/wallets/${userId}/toggle`, { method: 'PATCH' }),
 }

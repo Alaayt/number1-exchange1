@@ -148,4 +148,34 @@ router.get('/settings', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error.' })
   }
 })
+
+const mongoose = require('mongoose')
+ 
+// النموذج (نفس الذي في admin.js)
+const ExchangeMethods = mongoose.models.ExchangeMethods ||
+  mongoose.model('ExchangeMethods', new mongoose.Schema({
+    sendMethods:    { type: Array, default: [] },
+    receiveMethods: { type: Array, default: [] },
+  }, { timestamps: true }))
+ 
+const DEFAULT_SEND    = ['vodafone','instapay','fawry','orange','usdt-trc','mgo-send','wallet-usdt']
+const DEFAULT_RECEIVE = ['mgo-recv','usdt-recv','wallet-recv']
+ 
+// ─── GET /api/public/exchange-methods ─────────────────────────
+router.get('/exchange-methods', async (req, res) => {
+  try {
+    let doc = await ExchangeMethods.findOne()
+    if (!doc) {
+      // إذا لم تُحفظ إعدادات بعد → أرجع الكل مفعّل
+      return res.json({
+        success: true,
+        sendMethods:    DEFAULT_SEND.map(id    => ({ id, enabled: true })),
+        receiveMethods: DEFAULT_RECEIVE.map(id => ({ id, enabled: true })),
+      })
+    }
+    res.json({ success: true, sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error.' })
+  }
+})
 module.exports = router;
