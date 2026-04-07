@@ -512,7 +512,7 @@ const res = await fetch(`${API}/api/orders`, {
         </div>
 
         {/* ── TXID ── */}
-        {isUsdtSend && !isWalletRecv && (
+        {isUsdtSend && !isWalletRecv && !isMoneyGoRecv && (
           <div className="ef-card">
             <label className="ef-label">رقم المعاملة TXID <span style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>(اختياري)</span></label>
             <input type="text" value={txid} onChange={e => setTxid(e.target.value)} placeholder="الصق رقم المعاملة هنا..." className="ef-input ef-mono" style={{ direction: 'ltr' }} />
