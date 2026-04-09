@@ -4,10 +4,12 @@
 
 const express        = require('express')
 const router         = express.Router()
-const crypto         = require('crypto')
-const Order          = require('../models/Order')
+const crypto          = require('crypto')
+const Order           = require('../models/Order')
+const ExchangeMethod  = require('../models/ExchangeMethod')
+const Rate            = require('../models/Rate')
 const { protect, optionalProtect } = require('../middleware/auth')
-const { upload }     = require('../services/cloudinary')
+const { upload }      = require('../services/cloudinary')
 const telegramService = require('../services/telegram')
 
 const ORDER_LIFETIME_MS = 30 * 60 * 1000  // 30 دقيقة
@@ -275,6 +277,110 @@ router.post('/', optionalProtect, async (req, res) => {
       if (!phoneRx.test(payment.senderPhoneNumber.trim())) {
         return res.status(400).json({ success: false, message: 'رقم الهاتف غير صحيح.' })
       }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // Dynamic Exchange Method Validation
+    // ═══════════════════════════════════════════════════════
+    try {
+      const emDoc   = await ExchangeMethod.getSingleton()
+      const rateDoc = await Rate.getSingleton()
+
+      // ── Find the send and receive methods by paymentMethodKey or fallback ──
+      const sendMethodObj = emDoc.sendMethods.find(m =>
+        m.paymentMethodKey === payment.method || m.id === payment.method
+      )
+      // Determine receive method from orderType
+      const recvMethodObj = emDoc.receiveMethods.find(m => {
+        if (orderType.includes('MONEYGO') && m.type === 'moneygo') return true
+        if (orderType.includes('WALLET') && m.type === 'wallet') return true
+        if (orderType.includes('USDT') && m.type === 'crypto' && m.symbol === 'USDT' && !orderType.startsWith('USDT_TO_WALLET') && !orderType.includes('MONEYGO')) return true
+        // For USDT_TO_WALLET: recv = wallet
+        if (orderType === 'USDT_TO_WALLET' && m.type === 'wallet') return true
+        return false
+      })
+
+      // ── Validate send method is enabled ──
+      if (sendMethodObj && !sendMethodObj.enabled) {
+        return res.status(400).json({
+          success: false,
+          message: `وسيلة الإرسال "${sendMethodObj.name}" معطّلة حالياً.`
+        })
+      }
+
+      // ── Validate receive method is enabled ──
+      if (recvMethodObj && !recvMethodObj.enabled) {
+        return res.status(400).json({
+          success: false,
+          message: `وسيلة الاستلام "${recvMethodObj.name}" معطّلة حالياً.`
+        })
+      }
+
+      // ── Validate compatibility (if send method has compatibleWith set) ──
+      if (sendMethodObj && recvMethodObj && sendMethodObj.compatibleWith && sendMethodObj.compatibleWith.length > 0) {
+        if (!sendMethodObj.compatibleWith.includes(recvMethodObj.id)) {
+          return res.status(400).json({
+            success: false,
+            message: `لا يمكن التحويل من "${sendMethodObj.name}" إلى "${recvMethodObj.name}" — هذا الزوج غير متاح.`
+          })
+        }
+      }
+
+      // ── Validate amount against per-method limits ──
+      const sendAmt = parseFloat(payment.amountSent)
+      if (isNaN(sendAmt) || sendAmt <= 0) {
+        return res.status(400).json({ success: false, message: 'المبلغ يجب أن يكون أكبر من صفر.' })
+      }
+
+      // Per-method min/max (0 = use global)
+      const sendMin = sendMethodObj?.minAmount || 0
+      const sendMax = sendMethodObj?.maxAmount || 0
+
+      // Global limits by currency
+      const globalLimits = {
+        EGP: { min: rateDoc.minEgp || 100, max: rateDoc.maxEgp || 300000 },
+        USDT: { min: rateDoc.minUsdt || 10, max: rateDoc.maxUsdt || 10000 },
+        MGO: { min: rateDoc.minMgo || 10, max: rateDoc.maxMgo || 10000 },
+      }
+
+      const currency = payment.currencySent || 'EGP'
+      const effectiveMin = sendMin > 0 ? sendMin : (globalLimits[currency]?.min || 0)
+      const effectiveMax = sendMax > 0 ? sendMax : (globalLimits[currency]?.max || Infinity)
+
+      if (effectiveMin > 0 && sendAmt < effectiveMin) {
+        return res.status(400).json({
+          success: false,
+          message: `الحد الأدنى للمبلغ هو ${effectiveMin.toLocaleString()} ${currency}`
+        })
+      }
+      if (effectiveMax > 0 && effectiveMax < Infinity && sendAmt > effectiveMax) {
+        return res.status(400).json({
+          success: false,
+          message: `الحد الأقصى للمبلغ هو ${effectiveMax.toLocaleString()} ${currency}`
+        })
+      }
+
+      // ── Validate available liquidity for the receive currency ──
+      const recvAmt = parseFloat(moneygo.amountUSD || exchangeRate.finalAmountUSD || 0)
+      if (recvMethodObj && recvAmt > 0) {
+        const recvSymbol = recvMethodObj.symbol
+        const available = {
+          EGP: rateDoc.availableEgp ?? rateDoc.maxEgp ?? 300000,
+          USDT: rateDoc.availableUsdt ?? rateDoc.maxUsdt ?? 10000,
+          MGO: rateDoc.availableMgo ?? rateDoc.maxMgo ?? 10000,
+        }
+        const recvAvailable = available[recvSymbol]
+        if (recvAvailable !== undefined && recvAmt > recvAvailable) {
+          return res.status(400).json({
+            success: false,
+            message: `الرصيد المتاح من ${recvSymbol} غير كافٍ. المتاح: ${recvAvailable.toLocaleString()} ${recvSymbol}`
+          })
+        }
+      }
+
+    } catch (validationErr) {
+      // Log but don't block the order — fallback to basic validation
+      console.warn('Dynamic validation failed (proceeding with order):', validationErr.message)
     }
 
     // ── التحقق من معرّف الاستلام (ليس مطلوباً للحساب الداخلي) ──

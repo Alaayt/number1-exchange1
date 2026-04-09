@@ -1011,43 +1011,12 @@ router.get("/telegram/webhook-info", async (req, res) => {
   }
 });
 
-// ─── Exchange Methods ──────────────────────────
-const exchangeMethodsSchema = new mongoose.Schema(
-  {
-    sendMethods: { type: Array, default: [] },
-    receiveMethods: { type: Array, default: [] },
-  },
-  { timestamps: true },
-);
-
-const ExchangeMethods =
-  mongoose.models.ExchangeMethods ||
-  mongoose.model("ExchangeMethods", exchangeMethodsSchema);
-
-const DEFAULT_SEND_METHODS = [
-  { id: "vodafone", enabled: true },
-  { id: "instapay", enabled: true },
-  { id: "fawry", enabled: true },
-  { id: "orange", enabled: true },
-  { id: "usdt-trc", enabled: true },
-  { id: "mgo-send", enabled: true },
-  { id: "wallet-usdt", enabled: true },
-];
-
-const DEFAULT_RECEIVE_METHODS = [
-  { id: "mgo-recv", enabled: true },
-  { id: "usdt-recv", enabled: true },
-  { id: "wallet-recv", enabled: true },
-];
+// ─── Exchange Methods (Dynamic) ──────────────────
+const ExchangeMethod = require("../models/ExchangeMethod");
 
 router.get("/exchange-methods", async (req, res) => {
   try {
-    let doc = await ExchangeMethods.findOne();
-    if (!doc)
-      doc = await ExchangeMethods.create({
-        sendMethods: DEFAULT_SEND_METHODS,
-        receiveMethods: DEFAULT_RECEIVE_METHODS,
-      });
+    const doc = await ExchangeMethod.getSingleton();
     res.json({
       success: true,
       sendMethods: doc.sendMethods,
@@ -1061,7 +1030,55 @@ router.get("/exchange-methods", async (req, res) => {
 router.put("/exchange-methods", async (req, res) => {
   try {
     const { sendMethods, receiveMethods } = req.body;
-    const doc = await ExchangeMethods.findOneAndUpdate(
+
+    // Validate: no duplicate IDs
+    const sendIds = (sendMethods || []).map((m) => m.id);
+    const recvIds = (receiveMethods || []).map((m) => m.id);
+    if (new Set(sendIds).size !== sendIds.length) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Duplicate send method IDs." });
+    }
+    if (new Set(recvIds).size !== recvIds.length) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Duplicate receive method IDs." });
+    }
+
+    // Validate: required fields on each method
+    const allMethods = [
+      ...(sendMethods || []).map((m) => ({ ...m, _dir: "send" })),
+      ...(receiveMethods || []).map((m) => ({ ...m, _dir: "receive" })),
+    ];
+    for (const m of allMethods) {
+      if (!m.id || !m.id.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: `وسيلة بدون معرّف (ID) — كل وسيلة يجب أن يكون لها معرّف فريد.`,
+        });
+      }
+      if (!m.name || !m.name.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: `الوسيلة "${m.id}" بدون اسم — الاسم مطلوب.`,
+        });
+      }
+      if (!m.symbol || !m.symbol.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: `الوسيلة "${m.id}" بدون رمز عملة (Symbol) — الرمز مطلوب.`,
+        });
+      }
+      // Validate min ≤ max when both are set
+      if (m.minAmount > 0 && m.maxAmount > 0 && m.minAmount > m.maxAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `الوسيلة "${m.name}": الحد الأدنى (${m.minAmount}) أكبر من الحد الأقصى (${m.maxAmount}).`,
+        });
+      }
+    }
+
+    const doc = await ExchangeMethod.findOneAndUpdate(
       {},
       {
         $set: {
@@ -1078,6 +1095,7 @@ router.put("/exchange-methods", async (req, res) => {
       receiveMethods: doc.receiveMethods,
     });
   } catch (error) {
+    console.error("Exchange methods save error:", error);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });

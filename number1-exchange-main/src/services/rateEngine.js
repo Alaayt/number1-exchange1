@@ -1,8 +1,7 @@
 // src/services/rateEngine.js
-// ═══════════════════════════════════════════════════════════════
-// محرك الأسعار الديناميكي — يقرأ من API فقط، لا hardcode
-// ═══════════════════════════════════════════════════════════════
+// Dynamic rate engine — supports both hardcoded IDs and dynamic methods from DB
 
+// Fallback maps for backward compatibility
 const FROM_KEY_MAP = {
   'vodafone':    'EGP_VODAFONE',
   'instapay':    'EGP_INSTAPAY',
@@ -19,7 +18,34 @@ const TO_KEY_MAP = {
   'wallet-recv': 'INTERNAL',
 };
 
+const PAYMENT_METHOD_MAP = {
+  'vodafone':    'VODAFONE_CASH',
+  'instapay':    'INSTAPAY',
+  'fawry':       'FAWRY',
+  'orange':      'ORANGE_CASH',
+  'usdt-trc':    'USDT_TRC20',
+  'mgo-send':    'MONEYGO',
+  'wallet-usdt': 'WALLET',
+};
+
 const EGP_SENDERS = ['vodafone', 'instapay', 'fawry', 'orange'];
+
+// Get rateKey from method object or fallback to hardcoded map
+function getFromKey(fromId, sendMethod) {
+  if (sendMethod?.rateKey) return sendMethod.rateKey;
+  return FROM_KEY_MAP[fromId] || fromId.toUpperCase();
+}
+
+function getToKey(toId, recvMethod) {
+  if (recvMethod?.rateKey) return recvMethod.rateKey;
+  return TO_KEY_MAP[toId] || toId.toUpperCase();
+}
+
+function isEgpSender(fromId, sendMethod) {
+  if (sendMethod?.type === 'egp') return true;
+  if (sendMethod?.symbol === 'EGP') return true;
+  return EGP_SENDERS.includes(fromId);
+}
 
 function findPair(pairs, fromKey, toKey) {
   if (!pairs || !Array.isArray(pairs)) return null;
@@ -27,41 +53,41 @@ function findPair(pairs, fromKey, toKey) {
 }
 
 // ════════════════════════════════════════════════════════════
-// getRate
+// getRate — now accepts optional sendMethod/recvMethod objects
 // ════════════════════════════════════════════════════════════
-export function getRate(fromId, toId, ratesData) {
+export function getRate(fromId, toId, ratesData, sendMethod, recvMethod) {
   const DEFAULT = { rate: 1, divide: false, pair: null };
   if (!fromId || !toId || !ratesData) return DEFAULT;
 
   const pairs   = ratesData.pairs || [];
-  const fromKey = FROM_KEY_MAP[fromId];
-  const toKey   = TO_KEY_MAP[toId];
+  const fromKey = getFromKey(fromId, sendMethod);
+  const toKey   = getToKey(toId, recvMethod);
 
   if (!fromKey || !toKey) {
     console.warn(`[rateEngine] Unknown IDs: "${fromId}" → "${toId}"`);
     return DEFAULT;
   }
 
-  // ── MGO → USDT ────────────────────────────────────────────
+  // MGO → USDT
   if (fromKey === 'MGO' && toKey === 'USDT') {
     const pair = findPair(pairs, 'USDT', 'MGO');
     if (!pair) return DEFAULT;
     return { rate: pair.sellRate, divide: false, pair };
   }
 
-  // ── INTERNAL → USDT ───────────────────────────────────────
+  // INTERNAL → USDT
   if (fromKey === 'INTERNAL' && toKey === 'USDT') {
     const pair = findPair(pairs, 'INTERNAL', 'USDT');
     if (!pair) return { rate: 1, divide: false, pair: null };
     return { rate: pair.buyRate, divide: false, pair };
   }
 
-  // ── الحالة العامة (تشمل EGP→USDT و EGP→MGO) ──────────────
+  // General case
   const pair = findPair(pairs, fromKey, toKey);
 
   if (!pair) {
-    // fallback: إذا EGP→MGO غير موجود، احسب عبر USDT
-    if (EGP_SENDERS.includes(fromId) && toKey === 'MGO') {
+    // Fallback: if EGP→MGO not found, calculate via USDT
+    if (isEgpSender(fromId, sendMethod) && toKey === 'MGO') {
       const egpUsdt = findPair(pairs, fromKey, 'USDT');
       const usdtMgo = findPair(pairs, 'USDT', 'MGO');
       if (egpUsdt && usdtMgo) {
@@ -69,12 +95,16 @@ export function getRate(fromId, toId, ratesData) {
         return { rate: combinedRate, divide: true, pair: null };
       }
     }
+    // Try reverse pair
+    const reversePair = findPair(pairs, toKey, fromKey);
+    if (reversePair) {
+      return { rate: reversePair.sellRate, divide: !isEgpSender(fromId, sendMethod), pair: reversePair };
+    }
     console.warn(`[rateEngine] No pair found: "${fromKey}" → "${toKey}"`);
     return DEFAULT;
   }
 
-  const isEgp = EGP_SENDERS.includes(fromId);
-  if (isEgp) {
+  if (isEgpSender(fromId, sendMethod)) {
     return { rate: pair.buyRate, divide: true, pair };
   } else {
     return { rate: pair.buyRate, divide: false, pair };
@@ -84,10 +114,10 @@ export function getRate(fromId, toId, ratesData) {
 // ════════════════════════════════════════════════════════════
 // calcReceiveAmount
 // ════════════════════════════════════════════════════════════
-export function calcReceiveAmount(sendAmount, fromId, toId, ratesData) {
+export function calcReceiveAmount(sendAmount, fromId, toId, ratesData, sendMethod, recvMethod) {
   const amt = parseFloat(sendAmount) || 0;
   if (amt <= 0) return '';
-  const { rate, divide } = getRate(fromId, toId, ratesData);
+  const { rate, divide } = getRate(fromId, toId, ratesData, sendMethod, recvMethod);
   if (!rate || rate <= 0) return '';
   const result = divide ? amt / rate : amt * rate;
   return result.toFixed(4);
@@ -96,20 +126,20 @@ export function calcReceiveAmount(sendAmount, fromId, toId, ratesData) {
 // ════════════════════════════════════════════════════════════
 // getRateDisplay
 // ════════════════════════════════════════════════════════════
-export function getRateDisplay(fromId, toId, ratesData, fromSymbol, toSymbol) {
+export function getRateDisplay(fromId, toId, ratesData, fromSymbol, toSymbol, sendMethod, recvMethod) {
   if (!ratesData) return '...';
-  const { rate, divide } = getRate(fromId, toId, ratesData);
+  const { rate, divide } = getRate(fromId, toId, ratesData, sendMethod, recvMethod);
   if (!rate) return '...';
-  const fs = fromSymbol || fromId;
-  const ts = toSymbol   || toId;
+  const fs = fromSymbol || sendMethod?.symbol || fromId;
+  const ts = toSymbol   || recvMethod?.symbol || toId;
   if (divide) return `${rate.toFixed(2)} ${fs} = 1 ${ts}`;
   return `1 ${fs} = ${rate.toFixed(4)} ${ts}`;
 }
 
 // ════════════════════════════════════════════════════════════
-// toOrderType — مصحح لـ EGP→MGO
+// toOrderType — supports dynamic methods
 // ════════════════════════════════════════════════════════════
-export function toOrderType(fromId, toId) {
+export function toOrderType(fromId, toId, sendMethod, recvMethod) {
   const MAP = {
     'usdt-trc:wallet-recv':  'USDT_TO_WALLET',
     'usdt-trc:mgo-recv':     'USDT_TO_MONEYGO',
@@ -122,9 +152,21 @@ export function toOrderType(fromId, toId) {
   if (MAP[key]) return MAP[key];
 
   // EGP → USDT
-  if (EGP_SENDERS.includes(fromId) && toId === 'usdt-recv') return 'EGP_TO_USDT';
-  // EGP → MoneyGo (الجديد)
-  if (EGP_SENDERS.includes(fromId) && toId === 'mgo-recv')  return 'EGP_TO_MONEYGO';
+  if (isEgpSender(fromId, sendMethod) && (toId === 'usdt-recv' || recvMethod?.symbol === 'USDT')) return 'EGP_TO_USDT';
+  // EGP → MoneyGo
+  if (isEgpSender(fromId, sendMethod) && (toId === 'mgo-recv' || recvMethod?.symbol === 'MGO')) return 'EGP_TO_MONEYGO';
+
+  // Dynamic fallback based on method symbols
+  if (sendMethod && recvMethod) {
+    const from = sendMethod.symbol;
+    const to = recvMethod.symbol;
+    if (from === 'USDT' && to === 'MGO') return 'USDT_TO_MONEYGO';
+    if (from === 'USDT' && to === 'USDT' && recvMethod.type === 'wallet') return 'USDT_TO_WALLET';
+    if (from === 'MGO' && to === 'USDT') return 'MONEYGO_TO_USDT';
+    if (from === 'EGP' && to === 'USDT') return 'EGP_TO_USDT';
+    if (from === 'EGP' && to === 'MGO') return 'EGP_TO_MONEYGO';
+    return `${from}_TO_${to}`;
+  }
 
   return 'EGP_TO_USDT';
 }
@@ -132,24 +174,72 @@ export function toOrderType(fromId, toId) {
 // ════════════════════════════════════════════════════════════
 // toPaymentMethod
 // ════════════════════════════════════════════════════════════
-export function toPaymentMethod(fromId) {
-  const MAP = {
-    'vodafone':    'VODAFONE_CASH',
-    'instapay':    'INSTAPAY',
-    'fawry':       'FAWRY',
-    'orange':      'ORANGE_CASH',
-    'usdt-trc':    'USDT_TRC20',
-    'mgo-send':    'MONEYGO',
-    'wallet-usdt': 'WALLET',
-  };
-  return MAP[fromId] || 'VODAFONE_CASH';
+export function toPaymentMethod(fromId, sendMethod) {
+  if (sendMethod?.paymentMethodKey) return sendMethod.paymentMethodKey;
+  return PAYMENT_METHOD_MAP[fromId] || 'VODAFONE_CASH';
 }
 
 // ════════════════════════════════════════════════════════════
 // getCurrencySent
 // ════════════════════════════════════════════════════════════
-export function getCurrencySent(fromId) {
-  if (EGP_SENDERS.includes(fromId)) return 'EGP';
-  if (fromId === 'mgo-send')        return 'MGO';
+export function getCurrencySent(fromId, sendMethod) {
+  if (sendMethod?.symbol) return sendMethod.symbol;
+  if (isEgpSender(fromId)) return 'EGP';
+  if (fromId === 'mgo-send') return 'MGO';
   return 'USDT';
+}
+
+// ════════════════════════════════════════════════════════════
+// getDynamicLimits — calculate limits based on send/receive direction
+// ════════════════════════════════════════════════════════════
+export function getDynamicLimits(sendMethod, recvMethod, ratesData) {
+  if (!ratesData || !sendMethod) return { sendMin: 0, sendMax: Infinity };
+
+  const sendSymbol = sendMethod.symbol;
+  const recvSymbol = recvMethod?.symbol;
+
+  // Get available balances from rates data
+  const available = {
+    EGP: ratesData.availableEgp ?? ratesData.maxEgp ?? 300000,
+    USDT: ratesData.availableUsdt ?? ratesData.maxUsdt ?? 10000,
+    MGO: ratesData.availableMgo ?? ratesData.maxMgo ?? 10000,
+  };
+
+  const limits = {
+    EGP: { min: ratesData.minEgp || 100, max: ratesData.maxEgp || 300000 },
+    USDT: { min: ratesData.minUsdt || 10, max: ratesData.maxUsdt || 10000 },
+    MGO: { min: ratesData.minMgo || 10, max: ratesData.maxMgo || 10000 },
+  };
+
+  // Use per-method limits if set, otherwise global
+  const sendMin = sendMethod.limits?.min || sendMethod.minAmount || limits[sendSymbol]?.min || 0;
+  let sendMax = sendMethod.limits?.max || sendMethod.maxAmount || limits[sendSymbol]?.max || Infinity;
+
+  // Dynamic max adjustment:
+  // When sending (withdrawal from platform's perspective for recv currency):
+  //   - The receive currency's available balance limits how much can be sent
+  if (recvMethod && recvSymbol && available[recvSymbol] !== undefined) {
+    const recvAvailable = available[recvSymbol];
+    // Convert recv available back to send currency using rate
+    const rateInfo = getRate(sendMethod.id, recvMethod.id, ratesData, sendMethod, recvMethod);
+    if (rateInfo && rateInfo.rate > 0) {
+      const maxFromRecv = rateInfo.divide
+        ? recvAvailable * rateInfo.rate  // EGP = recvAmount * rate
+        : recvAvailable / rateInfo.rate; // USDT = recvAmount / rate
+      sendMax = Math.min(sendMax, maxFromRecv);
+    }
+  }
+
+  // Also cap by send currency available (platform receives this, so it's ok)
+  // But for withdrawal (send to user), cap by available
+  const sendAvailable = available[sendSymbol];
+  if (sendAvailable !== undefined && sendSymbol !== 'EGP') {
+    // If user is sending crypto/mgo, platform receives it - no cap needed
+    // If user is receiving crypto/mgo, platform sends it - cap by available
+  }
+
+  return {
+    sendMin: Math.max(0, sendMin),
+    sendMax: Math.max(0, Math.floor(sendMax * 100) / 100),
+  };
 }

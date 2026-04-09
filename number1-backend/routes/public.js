@@ -2,31 +2,8 @@
 const express = require("express");
 const router = express.Router();
 const Rate = require("../models/Rate");
+const ExchangeMethod = require("../models/ExchangeMethod");
 const mongoose = require("mongoose");
-
-const ExchangeMethods =
-  mongoose.models.ExchangeMethods ||
-  mongoose.model(
-    "ExchangeMethods",
-    new mongoose.Schema(
-      {
-        sendMethods: { type: Array, default: [] },
-        receiveMethods: { type: Array, default: [] },
-      },
-      { timestamps: true },
-    ),
-  );
-
-const DEFAULT_SEND = [
-  "vodafone",
-  "instapay",
-  "fawry",
-  "orange",
-  "usdt-trc",
-  "mgo-send",
-  "wallet-usdt",
-];
-const DEFAULT_RECEIVE = ["mgo-recv", "usdt-recv", "wallet-recv"];
 
 // ─── GET /api/public/rates ────────────────────
 router.get("/rates", async (req, res) => {
@@ -204,20 +181,66 @@ router.get("/settings", async (req, res) => {
 // ─── GET /api/public/exchange-methods ─────────
 router.get("/exchange-methods", async (req, res) => {
   try {
-    let doc = await ExchangeMethods.findOne();
-    if (!doc) {
-      return res.json({
-        success: true,
-        sendMethods: DEFAULT_SEND.map((id) => ({ id, enabled: true })),
-        receiveMethods: DEFAULT_RECEIVE.map((id) => ({ id, enabled: true })),
-      });
-    }
+    const doc = await ExchangeMethod.getSingleton();
+    const rateDoc = await Rate.getSingleton();
+
+    // Build limits map per currency symbol
+    const availableEgp = rateDoc.availableEgp ?? rateDoc.maxEgp ?? 300000;
+    const availableUsdt = rateDoc.availableUsdt ?? rateDoc.maxUsdt ?? 10000;
+    const availableMgo = rateDoc.availableMgo ?? rateDoc.maxMgo ?? 10000;
+
+    const limitsMap = {
+      EGP: {
+        min: rateDoc.minEgp || 100,
+        max: Math.min(rateDoc.maxEgp || 300000, availableEgp),
+        available: availableEgp,
+      },
+      USDT: {
+        min: rateDoc.minUsdt || 10,
+        max: Math.min(rateDoc.maxUsdt || 10000, availableUsdt),
+        available: availableUsdt,
+      },
+      MGO: {
+        min: rateDoc.minMgo || 10,
+        max: Math.min(rateDoc.maxMgo || 10000, availableMgo),
+        available: availableMgo,
+      },
+    };
+
+    // Enrich methods with limits
+    const enrichMethod = (m) => {
+      const globalLimits = limitsMap[m.symbol] || { min: 0, max: 0, available: 0 };
+      return {
+        ...m.toObject ? m.toObject() : m,
+        limits: {
+          min: m.minAmount > 0 ? m.minAmount : globalLimits.min,
+          max: m.maxAmount > 0 ? m.maxAmount : globalLimits.max,
+          available: globalLimits.available,
+        },
+      };
+    };
+
+    const sendMethods = doc.sendMethods
+      .filter((m) => m.enabled)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      .map(enrichMethod);
+
+    const receiveMethods = doc.receiveMethods
+      .filter((m) => m.enabled)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      .map(enrichMethod);
+
     res.json({
       success: true,
-      sendMethods: doc.sendMethods,
-      receiveMethods: doc.receiveMethods,
+      sendMethods,
+      receiveMethods,
+      // Also return all methods (including disabled) for reference
+      allSendMethods: doc.sendMethods.map(enrichMethod),
+      allReceiveMethods: doc.receiveMethods.map(enrichMethod),
+      limitsMap,
     });
   } catch (error) {
+    console.error("Exchange methods error:", error);
     res.status(500).json({ success: false, message: "Server error." });
   }
 });

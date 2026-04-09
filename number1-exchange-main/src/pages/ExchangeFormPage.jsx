@@ -3,13 +3,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import useAuth  from '../context/useAuth'
 import FlowDots from '../components/shared/FlowDots'
-import { SEND_METHODS, RECEIVE_METHODS } from '../data/currencies'
 import {
   getRate,
   getRateDisplay,
   toOrderType,
   toPaymentMethod,
   getCurrencySent,
+  getDynamicLimits,
 } from '../services/rateEngine'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -61,15 +61,19 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     if (!fromId || !toId) navigate('/exchange', { replace: true })
   }, [fromId, toId, navigate])
 
-  const sendMethod = SEND_METHODS.find(m => m.id === fromId)  || null
-  const recvMethod = RECEIVE_METHODS.find(m => m.id === toId) || null
+  // Dynamic methods from API
+  const [dynamicSend, setDynamicSend] = useState([])
+  const [dynamicRecv, setDynamicRecv] = useState([])
 
-  const isWalletRecv  = toId   === 'wallet-recv'
-  const isWalletSend  = fromId === 'wallet-usdt'
-  const isMoneyGoRecv = toId   === 'mgo-recv'
-  const isUsdtRecv    = toId   === 'usdt-recv'
-  const isEgpSend     = sendMethod?.type === 'egp'
-  const isUsdtSend    = fromId === 'usdt-trc'
+  const sendMethod = dynamicSend.find(m => m.id === fromId) || null
+  const recvMethod = dynamicRecv.find(m => m.id === toId) || null
+
+  const isWalletRecv  = recvMethod?.type === 'wallet' || toId === 'wallet-recv'
+  const isWalletSend  = sendMethod?.type === 'wallet' || fromId === 'wallet-usdt'
+  const isMoneyGoRecv = recvMethod?.type === 'moneygo' || toId === 'mgo-recv'
+  const isUsdtRecv    = (recvMethod?.symbol === 'USDT' && recvMethod?.type === 'crypto') || toId === 'usdt-recv'
+  const isEgpSend     = sendMethod?.type === 'egp' || sendMethod?.symbol === 'EGP'
+  const isUsdtSend    = (sendMethod?.symbol === 'USDT' && sendMethod?.type === 'crypto') || fromId === 'usdt-trc'
 
   // ── إذا المحفظة الداخلية وغير مسجل — ارجع وافتح Modal ──
   useEffect(() => {
@@ -94,11 +98,22 @@ export default function ExchangeFormPage({ onOpenAuth }) {
 
   const fetchMethods = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/public/payment-methods`)
-      const data = await res.json()
-      if (data.success) {
-        if (isEgpSend)       setAdminItem(data.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || data.wallets?.[0] || null)
-        else if (isUsdtSend) setAdminItem(data.cryptos?.[0] || null)
+      const [pmRes, emRes] = await Promise.all([
+        fetch(`${API}/api/public/payment-methods`),
+        fetch(`${API}/api/public/exchange-methods`),
+      ])
+      const pmData = await pmRes.json()
+      const emData = await emRes.json()
+
+      if (pmData.success) {
+        if (isEgpSend)       setAdminItem(pmData.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || pmData.wallets?.[0] || null)
+        else if (isUsdtSend) setAdminItem(pmData.cryptos?.[0] || null)
+      }
+
+      if (emData.success) {
+        // Use allSendMethods/allReceiveMethods to include all (even disabled) for form resolution
+        setDynamicSend(emData.allSendMethods || emData.sendMethods || [])
+        setDynamicRecv(emData.allReceiveMethods || emData.receiveMethods || [])
       }
     } catch {}
   }, [isEgpSend, isUsdtSend, fromId])
@@ -160,13 +175,13 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   // ── السعر ──────────────────────────────────────────────
   const rateDisplay = useMemo(() => {
     if (!rates) return '...'
-    return getRateDisplay(fromId, toId, rates, sendMethod?.symbol, recvMethod?.symbol)
+    return getRateDisplay(fromId, toId, rates, sendMethod?.symbol, recvMethod?.symbol, sendMethod, recvMethod)
   }, [fromId, toId, rates, sendMethod, recvMethod])
 
   const { rate: appliedRate, divide } = useMemo(() => {
     if (!rates) return { rate: 1, divide: false }
-    return getRate(fromId, toId, rates)
-  }, [fromId, toId, rates])
+    return getRate(fromId, toId, rates, sendMethod, recvMethod)
+  }, [fromId, toId, rates, sendMethod, recvMethod])
 
   // ── كتبت في Send ────────────────────────────────────────
   const handleSendChange = useCallback((val) => {
@@ -192,10 +207,11 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     setSendAmount(send.toFixed(4))
   }, [appliedRate, divide, fieldErrors.amount])
 
-// ── حدود العملة + المتاح ─────────────────────────────────
+// ── حدود العملة + المتاح (dynamic) ─────────────────────────
   const limits = useMemo(() => {
-    if (!rates || !recvMethod) return { min: 10, max: 5000, unit: recvMethod.symbol || 'USDT', available: 5000 }
-    
+    const recvSymbol = recvMethod?.symbol || 'USDT'
+    if (!rates || !recvMethod) return { min: 10, max: 5000, unit: recvSymbol, available: 5000 }
+
     const getLimits = (minKey, maxKey, availKey, unit) => ({
       min: rates[minKey] || 10,
       max: Math.min(rates[maxKey] || Infinity, rates[availKey] ?? rates[maxKey] ?? Infinity),
@@ -203,23 +219,45 @@ export default function ExchangeFormPage({ onOpenAuth }) {
       unit
     })
 
-    // Receive-side limits (what platform can PAY OUT)
-    if (isMoneyGoRecv) return getLimits('minMgo', 'maxMgo', 'availableMgo', 'MGO')
-    if (isUsdtRecv)   return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
-    if (isWalletRecv) return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
-    
+    // Use recv method limits if available from API
+    if (recvMethod?.limits) {
+      return {
+        min: recvMethod.limits.min || 10,
+        max: recvMethod.limits.max || 5000,
+        available: recvMethod.limits.available || recvMethod.limits.max || 5000,
+        unit: recvSymbol
+      }
+    }
+
+    // Fallback: Receive-side limits (what platform can PAY OUT)
+    if (isMoneyGoRecv || recvSymbol === 'MGO') return getLimits('minMgo', 'maxMgo', 'availableMgo', 'MGO')
+    if (isUsdtRecv || recvSymbol === 'USDT')   return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
+    if (recvSymbol === 'EGP')                  return getLimits('minEgp', 'maxEgp', 'availableEgp', 'EGP')
+
     // Default
     return getLimits('minUsdt', 'maxUsdt', 'availableUsdt', 'USDT')
-  }, [rates, recvMethod?.id, isMoneyGoRecv, isUsdtRecv, isWalletRecv])
+  }, [rates, recvMethod, isMoneyGoRecv, isUsdtRecv])
 
   // ── Validation ───────────────────────────────────────────
   const validate = () => {
     const errs  = {}
     const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
     const amt   = parseFloat(sendAmount)
-    if (!sendAmount || isNaN(amt) || amt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
-    else if (amt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
-    else if (amt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
+    const recvAmt = parseFloat(receiveAmount)
+
+    // Method enabled checks
+    if (sendMethod && sendMethod.enabled === false) errs.amount = `وسيلة الإرسال "${sendMethod.name}" معطّلة حالياً`
+    if (recvMethod && recvMethod.enabled === false) errs.amount = `وسيلة الاستلام "${recvMethod.name}" معطّلة حالياً`
+
+    if (!errs.amount) {
+      if (!sendAmount || isNaN(amt) || amt <= 0) errs.amount = 'يرجى إدخال مبلغ صحيح'
+      else if (amt < limits.min) errs.amount = `الحد الأدنى هو ${limits.min.toLocaleString()} ${limits.unit}`
+      else if (amt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
+      else if (recvAmt > 0 && limits.available < Infinity && recvAmt > limits.available) {
+        errs.amount = `المبلغ يتجاوز الرصيد المتاح (${limits.available.toLocaleString()} ${limits.unit})`
+      }
+    }
+
     if (!email || !emailRx.test(email)) errs.email = 'يرجى إدخال بريد إلكتروني صحيح'
     if (isEgpSend && userPhone && !/^\+?[0-9\s\-]{7,20}$/.test(userPhone.trim())) errs.phone = 'رقم الهاتف غير صحيح'
     if (isMoneyGoRecv && recipientId.trim().length < 3) errs.recipient = 'يرجى إدخال معرّف محفظة MoneyGo صحيح'
@@ -272,11 +310,11 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           customerName:  email.split('@')[0],
           customerEmail: email,
           customerPhone: userPhone || '',
-          orderType:     toOrderType(fromId, toId),
+          orderType:     toOrderType(fromId, toId, sendMethod, recvMethod),
           payment: {
-            method:            toPaymentMethod(fromId),
+            method:            toPaymentMethod(fromId, sendMethod),
             amountSent:        parseFloat(sendAmount),
-            currencySent:      getCurrencySent(fromId),
+            currencySent:      getCurrencySent(fromId, sendMethod),
             receiptImageUrl,
             senderPhoneNumber: userPhone || '',
             txHash:            txid.trim() || null,
