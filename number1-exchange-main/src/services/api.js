@@ -1,10 +1,7 @@
-// src/services/api.js
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api'
 
-// ─── Helper ───────────────────────────────────────────────────
 const request = async (endpoint, options = {}) => {
   const token = localStorage.getItem('n1_token')
-
   const config = {
     headers: {
       'Content-Type': 'application/json',
@@ -13,27 +10,22 @@ const request = async (endpoint, options = {}) => {
     },
     ...options,
   }
-
   const response = await fetch(`${BASE_URL}${endpoint}`, config)
   const data = await response.json()
-
   if (!response.ok) {
     const error = new Error(data.message || 'Something went wrong')
     error.response = { data }
     throw error
   }
-
   return { data }
 }
 
-// ─── Auth ─────────────────────────────────────────────────────
 export const authAPI = {
   register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
   login:    (body) => request('/auth/login',    { method: 'POST', body: JSON.stringify(body) }),
   me:       ()     => request('/auth/me'),
 }
 
-// ─── Orders ───────────────────────────────────────────────────
 export const ordersAPI = {
   create:     (body)       => request('/orders',                   { method: 'POST', body: JSON.stringify(body) }),
   track:      (orderNum)   => request(`/orders/track/${orderNum}`),
@@ -41,55 +33,35 @@ export const ordersAPI = {
   verifyUSDT: (id, txHash) => request(`/orders/${id}/verify-usdt`, { method: 'POST', body: JSON.stringify({ txHash }) }),
 }
 
-// ─── Public Payment Methods (للمستخدم) ───────────────────────
 export const paymentAPI = {
   getMethods: () => request('/public/payment-methods'),
 }
 
-// ─── Admin ────────────────────────────────────────────────────
 export const adminAPI = {
-  // Orders
   getOrders:    (params = {}) => request(`/admin/orders?${new URLSearchParams(params)}`),
   getOrder:     (id)          => request(`/admin/orders/${id}`),
-  updateStatus: (id, body)    => request(`/admin/orders/${id}/status`, { method: 'PUT',  body: JSON.stringify(body) }),
-
-  // Stats
-  getStats: () => request('/admin/stats'),
-
-  // Users
-  getUsers:    (params = {}) => request(`/admin/users?${new URLSearchParams(params)}`),
-  blockUser:   (id, body)    => request(`/admin/users/${id}/block`, { method: 'PATCH', body: JSON.stringify(body) }),
-
-  // Rates
-  getRates:  ()     => request('/admin/rates'),
-  saveRates: (body) => request('/admin/rates', { method: 'PUT', body: JSON.stringify(body) }),
-
-  // Settings
-  getSettings:  ()     => request('/admin/settings'),
-  saveSettings: (body) => request('/admin/settings', { method: 'PUT', body: JSON.stringify(body) }),
-
-  // Payment Methods
-  getPaymentMethods:  ()     => request('/admin/payment-methods'),
-  savePaymentMethods: (body) => request('/admin/payment-methods', { method: 'PUT', body: JSON.stringify(body) }),
-
-  // Wallet Deposit Addresses
-  getWalletDepositAddresses:  ()     => request('/admin/wallet-deposit-addresses'),
-  saveWalletDepositAddresses: (body) => request('/admin/wallet-deposit-addresses', { method: 'PUT', body: JSON.stringify(body) }),
-
-  // ── Exchange Methods (وسائل الإرسال والاستلام) ──────────────
-  getExchangeMethods:  ()     => request('/admin/exchange-methods'),
-  saveExchangeMethods: (body) => request('/admin/exchange-methods', { method: 'PUT', body: JSON.stringify(body) }),
+  updateStatus: (id, body)    => request(`/admin/orders/${id}/status`, { method: 'PUT', body: JSON.stringify(body) }),
+  getStats:     ()            => request('/admin/stats'),
+  getUsers:     (params = {}) => request(`/admin/users?${new URLSearchParams(params)}`),
+  blockUser:    (id, body)    => request(`/admin/users/${id}/block`, { method: 'PATCH', body: JSON.stringify(body) }),
+  getRates:     ()            => request('/admin/rates'),
+  saveRates:    (body)        => request('/admin/rates',    { method: 'PUT', body: JSON.stringify(body) }),
+  getSettings:  ()            => request('/admin/settings'),
+  saveSettings: (body)        => request('/admin/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  getPaymentMethods:           ()     => request('/admin/payment-methods'),
+  savePaymentMethods:          (body) => request('/admin/payment-methods',          { method: 'PUT', body: JSON.stringify(body) }),
+  getWalletDepositAddresses:   ()     => request('/admin/wallet-deposit-addresses'),
+  saveWalletDepositAddresses:  (body) => request('/admin/wallet-deposit-addresses', { method: 'PUT', body: JSON.stringify(body) }),
+  getExchangeMethods:          ()     => request('/admin/exchange-methods'),
+  saveExchangeMethods:         (body) => request('/admin/exchange-methods',         { method: 'PUT', body: JSON.stringify(body) }),
 }
 
-// ─── Wallet ───────────────────────────────────────────────────
 export const walletAPI = {
-  getWallet:       ()            => request('/wallet'),
-  getTransactions: (params = {}) => request(`/wallet/transactions?${new URLSearchParams(params)}`),
-  withdraw:        (body)        => request('/wallet/withdraw', { method: 'POST', body: JSON.stringify(body) }),
-
-  // Admin
-  getAllWallets:  ()           => request('/admin/wallets'),
-  getUserWallet: (userId)     => request(`/admin/wallets/${userId}`),
-  adminDeposit:  (userId, body) => request(`/admin/wallets/${userId}/deposit`, { method: 'POST', body: JSON.stringify(body) }),
-  toggleWallet:  (userId)     => request(`/admin/wallets/${userId}/toggle`, { method: 'PATCH' }),
+  getWallet:       ()               => request('/wallet'),
+  getTransactions: (params = {})    => request(`/wallet/transactions?${new URLSearchParams(params)}`),
+  withdraw:        (body)           => request('/wallet/withdraw', { method: 'POST', body: JSON.stringify(body) }),
+  getAllWallets:    ()               => request('/admin/wallets'),
+  getUserWallet:   (userId)         => request(`/admin/wallets/${userId}`),
+  adminDeposit:    (userId, body)   => request(`/admin/wallets/${userId}/deposit`, { method: 'POST', body: JSON.stringify(body) }),
+  toggleWallet:    (userId)         => request(`/admin/wallets/${userId}/toggle`,  { method: 'PATCH' }),
 }

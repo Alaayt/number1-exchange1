@@ -5,15 +5,15 @@
 const FROM_KEY_MAP = {
   'vodafone':    'EGP_VODAFONE',
   'instapay':    'EGP_INSTAPAY',
-  'fawry':       'EGP_FAWRY',
-  'orange':      'EGP_ORANGE',
   'usdt-trc':    'USDT',
+  'usdt-bnb':    'USDT',
   'mgo-send':    'MGO',
   'wallet-usdt': 'INTERNAL',
 };
 
 const TO_KEY_MAP = {
-  'usdt-recv':   'USDT',
+  'usdt-trc':    'USDT',
+  'usdt-bnb':    'USDT',
   'mgo-recv':    'MGO',
   'wallet-recv': 'INTERNAL',
 };
@@ -21,14 +21,13 @@ const TO_KEY_MAP = {
 const PAYMENT_METHOD_MAP = {
   'vodafone':    'VODAFONE_CASH',
   'instapay':    'INSTAPAY',
-  'fawry':       'FAWRY',
-  'orange':      'ORANGE_CASH',
   'usdt-trc':    'USDT_TRC20',
+  'usdt-bnb':    'USDT_BEP20',
   'mgo-send':    'MONEYGO',
   'wallet-usdt': 'WALLET',
 };
 
-const EGP_SENDERS = ['vodafone', 'instapay', 'fawry', 'orange'];
+const EGP_SENDERS = ['vodafone', 'instapay'];
 
 // Get rateKey from method object or fallback to hardcoded map
 function getFromKey(fromId, sendMethod) {
@@ -143,28 +142,32 @@ export function toOrderType(fromId, toId, sendMethod, recvMethod) {
   const MAP = {
     'usdt-trc:wallet-recv':  'USDT_TO_WALLET',
     'usdt-trc:mgo-recv':     'USDT_TO_MONEYGO',
-    'wallet-usdt:usdt-recv': 'WALLET_TO_USDT',
+    'usdt-bnb:wallet-recv':  'USDT_TO_WALLET',
+    'usdt-bnb:mgo-recv':     'USDT_TO_MONEYGO',
+    'wallet-usdt:usdt-trc':  'WALLET_TO_USDT',
+    'wallet-usdt:usdt-bnb':  'WALLET_TO_USDT',
     'wallet-usdt:mgo-recv':  'WALLET_TO_MONEYGO',
-    'mgo-send:usdt-recv':    'MONEYGO_TO_USDT',
+    'mgo-send:usdt-trc':     'MONEYGO_TO_USDT',
+    'mgo-send:usdt-bnb':     'MONEYGO_TO_USDT',
   };
 
   const key = `${fromId}:${toId}`;
   if (MAP[key]) return MAP[key];
 
   // EGP → USDT
-  if (isEgpSender(fromId, sendMethod) && (toId === 'usdt-recv' || recvMethod?.symbol === 'USDT')) return 'EGP_TO_USDT';
+  if (isEgpSender(fromId, sendMethod) && (toId === 'usdt-trc' || toId === 'usdt-bnb' || recvMethod?.symbol === 'USDT')) return 'EGP_TO_USDT';
   // EGP → MoneyGo
   if (isEgpSender(fromId, sendMethod) && (toId === 'mgo-recv' || recvMethod?.symbol === 'MGO')) return 'EGP_TO_MONEYGO';
 
   // Dynamic fallback based on method symbols
   if (sendMethod && recvMethod) {
     const from = sendMethod.symbol;
-    const to = recvMethod.symbol;
-    if (from === 'USDT' && to === 'MGO') return 'USDT_TO_MONEYGO';
+    const to   = recvMethod.symbol;
+    if (from === 'USDT' && to === 'MGO')                            return 'USDT_TO_MONEYGO';
     if (from === 'USDT' && to === 'USDT' && recvMethod.type === 'wallet') return 'USDT_TO_WALLET';
-    if (from === 'MGO' && to === 'USDT') return 'MONEYGO_TO_USDT';
-    if (from === 'EGP' && to === 'USDT') return 'EGP_TO_USDT';
-    if (from === 'EGP' && to === 'MGO') return 'EGP_TO_MONEYGO';
+    if (from === 'MGO'  && to === 'USDT')                           return 'MONEYGO_TO_USDT';
+    if (from === 'EGP'  && to === 'USDT')                           return 'EGP_TO_USDT';
+    if (from === 'EGP'  && to === 'MGO')                            return 'EGP_TO_MONEYGO';
     return `${from}_TO_${to}`;
   }
 

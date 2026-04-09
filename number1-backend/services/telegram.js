@@ -41,51 +41,80 @@ exports.sendMessage = async (text, options = {}) => {
 
 // ─── إرسال إشعار طلب جديد ────────────────────
 exports.notifyNewOrder = async (order) => {
-  const methodEmojis = {
-    USDT_TRC20: '₮', VODAFONE_CASH: '📱', ORANGE_CASH: '🟠',
-    FAWRY: '🏪', WE_PAY: '💳', MEEZA: '🏦', INSTAPAY: '⚡'
+  const METHOD_EMOJI = {
+    VODAFONE_CASH: '📱',
+    INSTAPAY:      '⚡',
+    USDT_TRC20:    '🔷',
+    USDT_BEP20:    '🟡',
+    MONEYGO:       '💚',
+    WALLET:        '🏦',
   }
-  const methodLabels = {
-    USDT_TRC20: 'USDT TRC20', VODAFONE_CASH: 'Vodafone Cash',
-    ORANGE_CASH: 'Orange Cash', FAWRY: 'Fawry', WE_PAY: 'WE Pay',
-    MEEZA: 'Meeza', INSTAPAY: 'InstaPay'
+  const METHOD_LABEL = {
+    VODAFONE_CASH: 'Vodafone Cash',
+    INSTAPAY:      'InstaPay',
+    USDT_TRC20:    'USDT (TRC20)',
+    USDT_BEP20:    'USDT (BEP20 / BNB)',
+    MONEYGO:       'MoneyGo USD',
+    WALLET:        'محفظة داخلية',
+  }
+  const ORDER_TYPE_LABEL = {
+    EGP_TO_USDT:       'جنيه مصري  ➜  USDT',
+    EGP_TO_MONEYGO:    'جنيه مصري  ➜  MoneyGo',
+    USDT_TO_MONEYGO:   'USDT  ➜  MoneyGo',
+    USDT_TO_WALLET:    'USDT  ➜  محفظة داخلية',
+    WALLET_TO_USDT:    'محفظة داخلية  ➜  USDT',
+    WALLET_TO_MONEYGO: 'محفظة داخلية  ➜  MoneyGo',
+    MONEYGO_TO_USDT:   'MoneyGo  ➜  USDT',
   }
 
-  const emoji   = methodEmojis[order.payment.method] || '💸'
-  const method  = methodLabels[order.payment.method]  || order.payment.method.replace(/_/g, ' ')
-  const isUSDT  = order.payment.method === 'USDT_TRC20'
+  const payMethod  = order.payment?.method || ''
+  const emoji      = METHOD_EMOJI[payMethod] || '💸'
+  const methodName = METHOD_LABEL[payMethod] || payMethod.replace(/_/g, ' ')
+  const pairLabel  = ORDER_TYPE_LABEL[order.orderType] || order.orderType || '—'
 
-  const rate    = parseFloat(order.exchangeRate.appliedRate)
+  const isUsdtSend = payMethod === 'USDT_TRC20' || payMethod === 'USDT_BEP20'
+  const network    = payMethod === 'USDT_BEP20' ? 'BEP20' : payMethod === 'USDT_TRC20' ? 'TRC20' : null
+
+  const rate    = parseFloat(order.exchangeRate?.appliedRate || 0)
   const rateStr = rate >= 1
-    ? rate.toFixed(4).replace(/\.?0+$/, '')
+    ? rate.toFixed(2).replace(/\.?0+$/, '')
     : rate.toPrecision(4).replace(/\.?0+$/, '')
 
-  const isReceiveMoneyGo = order.orderType === 'USDT_TO_MONEYGO' || order.orderType === 'EGP_WALLET_TO_MONEYGO'
-  const recipientLabel = isReceiveMoneyGo ? '🎯 معرّف MoneyGo للاستلام' : '🔑 عنوان USDT للاستلام'
+  const recipient      = order.moneygo?.recipientPhone || '—'
+  const isMoneyGoRecv  = order.orderType?.includes('MONEYGO') && !order.orderType?.startsWith('MONEYGO')
+  const recipientIcon  = isMoneyGoRecv ? '🎯' : '🔑'
+  const recipientLabel = isMoneyGoRecv ? 'معرّف MoneyGo للاستلام' : 'عنوان/رقم الاستلام'
+
+  const cairoTime = new Date(order.createdAt || Date.now())
+    .toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', hour12: true })
 
   const text = `
-🆕 <b>طلب جديد — Number1</b>
-━━━━━━━━━━━━━━━━━━━
-📋 <b>رقم الطلب:</b> <code>${order.orderNumber}</code>
-👤 <b>العميل:</b> ${order.customerName}
-📧 <b>الإيميل:</b> ${order.customerEmail}
-${order.customerPhone ? `📞 <b>هاتف الإرسال:</b> <code>${order.customerPhone}</code>` : ''}
-━━━━━━━━━━━━━━━━━━━
-${emoji} <b>طريقة الدفع:</b> ${method}
-💵 <b>المبلغ المُرسَل:</b> ${order.payment.amountSent} ${order.payment.currencySent}
-${isUSDT && order.payment.txHash ? `🔗 <b>TX Hash:</b> <code>${order.payment.txHash}</code>` : ''}
-💚 <b>المبلغ النهائي:</b> $${order.exchangeRate.finalAmountUSD} USD
-📈 <b>السعر المُطبَّق:</b> ${rateStr} ${order.payment.currencySent}/USD
-━━━━━━━━━━━━━━━━━━━
-${recipientLabel}: <code>${order.moneygo.recipientPhone || '—'}</code>
-⏰ ${new Date(order.createdAt).toLocaleString('ar-EG')}
+🆕 <b>طلب جديد — Number1 Exchange</b>
+━━━━━━━━━━━━━━━━━━━━━━
+📋 <b>رقم الطلب:</b>  <code>${order.orderNumber}</code>
+👤 <b>الاسم:</b>  ${order.customerName || '—'}
+📧 <b>الإيميل:</b>  <code>${order.customerEmail || '—'}</code>
+${order.customerPhone ? `📞 <b>هاتف الإرسال:</b>  <code>${order.customerPhone}</code>` : ''}
+━━━━━━━━━━━━━━━━━━━━━━
+🔄 <b>نوع العملية:</b>  ${pairLabel}
+${emoji} <b>وسيلة الدفع:</b>  ${methodName}
+${network ? `🌐 <b>الشبكة:</b>  <code>${network}</code>` : ''}
+━━━━━━━━━━━━━━━━━━━━━━
+💵 <b>المبلغ المُرسَل:</b>  <code>${order.payment?.amountSent} ${order.payment?.currencySent}</code>
+💚 <b>المبلغ المُستلَم:</b>  <code>${order.exchangeRate?.finalAmountUSD} USD</code>
+📈 <b>سعر الصرف:</b>  ${rateStr} ${order.payment?.currencySent || ''}/USD
+${isUsdtSend && order.payment?.txHash ? `🔗 <b>TX Hash:</b>  <code>${order.payment.txHash}</code>` : ''}
+━━━━━━━━━━━━━━━━━━━━━━
+${recipientIcon} <b>${recipientLabel}:</b>
+<code>${recipient}</code>
+━━━━━━━━━━━━━━━━━━━━━━
+🕐 <b>التوقيت (القاهرة):</b>  ${cairoTime}
   `.trim()
 
-  // ─── الأزرار الأولية: موافقة أو رفض فقط ───
   const inline_keyboard = [
     [
-      { text: '✅ موافقة', callback_data: `approve_${order._id}` },
-      { text: '❌ رفض',    callback_data: `reject_${order._id}`  },
+      { text: '✅ موافقة',  callback_data: `approve_${order._id}` },
+      { text: '❌ رفض',     callback_data: `reject_${order._id}`  },
     ]
   ]
 
@@ -245,19 +274,24 @@ exports.editOrderMessage = async (messageId, order, action) => {
     const { token, chatId } = await getConfig()
     if (!token || !chatId) return
 
+    const cairoNow = new Date().toLocaleString('ar-EG', { timeZone: 'Africa/Cairo', hour12: true })
+    const payMethod  = (order.payment?.method || '').replace(/_/g, ' ')
+    const recipient  = order.moneygo?.recipientPhone || '—'
+
     const newText = `
-📋 <b>طلب — Number1</b>
-━━━━━━━━━━━━━━━━━━━
-🔢 <b>رقم الطلب:</b> <code>${order.orderNumber}</code>
-👤 <b>العميل:</b> ${order.customerName}
-📧 <b>الإيميل:</b> ${order.customerEmail}
-━━━━━━━━━━━━━━━━━━━
-💳 <b>الدفع:</b> ${method}
-💵 <b>المبلغ:</b> ${order.payment?.amountSent} ${order.payment?.currencySent}
-💚 <b>النهائي:</b> $${order.exchangeRate?.finalAmountUSD} USD
-━━━━━━━━━━━━━━━━━━━
+📋 <b>طلب — Number1 Exchange</b>
+━━━━━━━━━━━━━━━━━━━━━━
+🔢 <b>رقم الطلب:</b>  <code>${order.orderNumber}</code>
+👤 <b>العميل:</b>  ${order.customerName || '—'}
+📧 <b>الإيميل:</b>  <code>${order.customerEmail || '—'}</code>
+━━━━━━━━━━━━━━━━━━━━━━
+💳 <b>وسيلة الدفع:</b>  ${payMethod}
+💵 <b>المُرسَل:</b>  <code>${order.payment?.amountSent} ${order.payment?.currencySent}</code>
+💚 <b>المُستلَم:</b>  <code>${order.exchangeRate?.finalAmountUSD} USD</code>
+🔑 <b>عنوان/رقم الاستلام:</b>  <code>${recipient}</code>
+━━━━━━━━━━━━━━━━━━━━━━
 ${stamp}
-⏰ ${new Date().toLocaleString('ar-EG')}
+🕐 <b>آخر تحديث (القاهرة):</b>  ${cairoNow}
     `.trim()
 
     await axios.post(`https://api.telegram.org/bot${token}/editMessageText`, {

@@ -71,9 +71,11 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   const isWalletRecv  = recvMethod?.type === 'wallet' || toId === 'wallet-recv'
   const isWalletSend  = sendMethod?.type === 'wallet' || fromId === 'wallet-usdt'
   const isMoneyGoRecv = recvMethod?.type === 'moneygo' || toId === 'mgo-recv'
-  const isUsdtRecv    = (recvMethod?.symbol === 'USDT' && recvMethod?.type === 'crypto') || toId === 'usdt-recv'
+  const isUsdtRecv    = (recvMethod?.symbol === 'USDT' && recvMethod?.type === 'crypto') || toId === 'usdt-trc' || toId === 'usdt-bnb'
   const isEgpSend     = sendMethod?.type === 'egp' || sendMethod?.symbol === 'EGP'
-  const isUsdtSend    = (sendMethod?.symbol === 'USDT' && sendMethod?.type === 'crypto') || fromId === 'usdt-trc'
+  const isUsdtSend    = (sendMethod?.symbol === 'USDT' && sendMethod?.type === 'crypto') || fromId === 'usdt-trc' || fromId === 'usdt-bnb'
+  const sendNetwork   = sendMethod?.network || (fromId === 'usdt-bnb' ? 'BEP20' : 'TRC20')
+  const recvNetwork   = recvMethod?.network || (toId === 'usdt-bnb' ? 'BEP20' : 'TRC20')
 
   // ── إذا المحفظة الداخلية وغير مسجل — ارجع وافتح Modal ──
   useEffect(() => {
@@ -106,17 +108,25 @@ export default function ExchangeFormPage({ onOpenAuth }) {
       const emData = await emRes.json()
 
       if (pmData.success) {
-        if (isEgpSend)       setAdminItem(pmData.wallets?.find(w => (w.name||'').toLowerCase().includes(fromId)) || pmData.wallets?.[0] || null)
-        else if (isUsdtSend) setAdminItem(pmData.cryptos?.[0] || null)
+        if (isEgpSend) {
+          const wallet = pmData.wallets?.find(w => w.methodId === fromId)
+            || pmData.wallets?.find(w => (w.name || '').toLowerCase().includes(fromId))
+            || pmData.wallets?.[0] || null
+          setAdminItem(wallet)
+        } else if (isUsdtSend) {
+          const crypto = pmData.cryptos?.find(c => c.methodId === fromId)
+            || pmData.cryptos?.find(c => c.network === sendNetwork)
+            || pmData.cryptos?.[0] || null
+          setAdminItem(crypto)
+        }
       }
 
       if (emData.success) {
-        // Use allSendMethods/allReceiveMethods to include all (even disabled) for form resolution
         setDynamicSend(emData.allSendMethods || emData.sendMethods || [])
         setDynamicRecv(emData.allReceiveMethods || emData.receiveMethods || [])
       }
     } catch {}
-  }, [isEgpSend, isUsdtSend, fromId])
+  }, [isEgpSend, isUsdtSend, fromId, sendNetwork])
 
   // Initial fetch
   useEffect(() => {
@@ -149,7 +159,6 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   // ── باقي الحالة ─────────────────────────────────────────
   const [recipientId, setRecipientId] = useState('')
   const [usdtAddress, setUsdtAddress] = useState('')
-  const [usdtNetwork, setUsdtNetwork] = useState('TRC20')
   const [email,       setEmail]       = useState(() => user?.email || '')
   const [userPhone,   setUserPhone]   = useState('')
   const [txid,        setTxid]        = useState('')
@@ -334,7 +343,7 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           } catch (_) {}
         }
         navigate(`/exchange/order/${data.order.orderNumber}`, {
-          state: { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId: recipientPhone, usdtNetwork, adminItem, email }
+          state: { sendMethod, recvMethod, sendAmount, receiveAmount, recipientId: recipientPhone, usdtNetwork: recvNetwork, adminItem, email }
         })
       } else {
         setError(data.message || 'حدث خطأ، حاول مرة أخرى')
@@ -476,6 +485,45 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           </div>
         </div>
 
+        {/* حوّل المبلغ إلى — عنوان/رقم الاستلام من لوحة التحكم */}
+        {(isEgpSend || isUsdtSend) && (
+          <div className="ef-card" style={{ background: 'rgba(0,210,255,0.04)', borderColor: 'rgba(0,210,255,0.25)' }}>
+            <label className="ef-label">حوّل المبلغ إلى</label>
+            {adminItem ? (
+              <>
+                {isEgpSend && adminItem.number && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'rgba(0,229,160,0.07)', borderRadius: 10, border: '1px solid rgba(0,229,160,0.25)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 3 }}>الرقم</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", letterSpacing: 1 }}>{adminItem.number}</div>
+                    </div>
+                    <button onClick={() => navigator.clipboard?.writeText(adminItem.number)} style={{ padding: '6px 14px', border: '1px solid rgba(0,229,160,0.4)', borderRadius: 8, background: 'transparent', color: 'var(--green)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0 }}>نسخ</button>
+                  </div>
+                )}
+                {isUsdtSend && adminItem.address && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', background: 'rgba(0,210,255,0.07)', borderRadius: 10, border: '1px solid rgba(0,210,255,0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>الشبكة:</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{adminItem.network || sendNetwork}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace", marginBottom: 3 }}>العنوان</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-1)', fontFamily: "'JetBrains Mono',monospace", wordBreak: 'break-all' }}>{adminItem.address}</div>
+                      </div>
+                      <button onClick={() => navigator.clipboard?.writeText(adminItem.address)} style={{ padding: '6px 14px', border: '1px solid rgba(0,210,255,0.3)', borderRadius: 8, background: 'transparent', color: 'var(--cyan)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, fontFamily: "'Cairo',sans-serif", flexShrink: 0, alignSelf: 'flex-end' }}>نسخ</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.25)', fontSize: '0.84rem', color: 'var(--gold)', fontFamily: "'Cairo','Tajawal',sans-serif", textAlign: 'center' }}>
+                تواصل مع الدعم للحصول على بيانات التحويل
+              </div>
+            )}
+          </div>
+        )}
+
         {/* بيانات الاستلام */}
         <div className="ef-card" id="field-recipient">
           {isMoneyGoRecv && (
@@ -488,18 +536,16 @@ export default function ExchangeFormPage({ onOpenAuth }) {
           )}
           {isUsdtRecv && (
             <>
-              <label className="ef-label">عنوان محفظة USDT للاستلام <span style={{ color: 'var(--red)' }}>*</span></label>
-              <input type="text" value={usdtAddress} onChange={e => { setUsdtAddress(e.target.value); clearErr('recipient') }} placeholder="T... أو 0x..." className={`ef-input ef-mono ${fieldErrors.recipient ? 'ef-input--error' : ''}`} style={{ direction: 'ltr' }} />
+              <label className="ef-label">عنوان محفظة {recvNetwork === 'BEP20' ? 'USDT BNB' : 'USDT TRC20'} للاستلام <span style={{ color: 'var(--red)' }}>*</span></label>
+              <input type="text" value={usdtAddress} onChange={e => { setUsdtAddress(e.target.value); clearErr('recipient') }} placeholder={recvNetwork === 'BEP20' ? '0x...' : 'T...'} className={`ef-input ef-mono ${fieldErrors.recipient ? 'ef-input--error' : ''}`} style={{ direction: 'ltr' }} />
               <FieldError msg={fieldErrors.recipient} />
-              <label className="ef-label" style={{ marginTop: 14 }}>الشبكة</label>
-              <div className="ef-network-row">
-                {['TRC20', 'BEP20'].map(net => (
-                  <button key={net} onClick={() => setUsdtNetwork(net)} className={`ef-net-btn ${usdtNetwork === net ? 'ef-net-btn--active' : ''}`}>{net}</button>
-                ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(0,210,255,0.06)', border: '1px solid rgba(0,210,255,0.15)', marginTop: 4 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontFamily: "'JetBrains Mono',monospace" }}>الشبكة:</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace" }}>{recvNetwork}</span>
               </div>
               <div className="ef-warning">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                <span>⚠ تأكد من اختيار الشبكة الصحيحة ({usdtNetwork}). الإرسال على شبكة خاطئة قد يؤدي إلى فقدان الأموال نهائياً.</span>
+                <span>⚠ تأكد من إدخال عنوان الشبكة الصحيحة ({recvNetwork}). الإرسال على شبكة خاطئة قد يؤدي إلى فقدان الأموال نهائياً.</span>
               </div>
             </>
           )}

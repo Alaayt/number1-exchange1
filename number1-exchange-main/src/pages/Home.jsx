@@ -71,19 +71,7 @@ function LockBadge() {
 // ── Dynamic compatibility using compatibleWith arrays from admin panel ──
 function isCompatible(send, recv) {
   if (!send || !recv) return true
-  // Same currency/symbol prevention
-  if (send.symbol === recv.symbol && send.symbol !== 'USDT') return false
-  // For USDT: prevent if both are same type (e.g. both crypto USDT)
-  if (send.symbol === recv.symbol && send.type === recv.type) return false
-  // Use compatibleWith arrays from database
-  if (send.compatibleWith && send.compatibleWith.length > 0) {
-    return send.compatibleWith.includes(recv.id)
-  }
-  if (recv.compatibleWith && recv.compatibleWith.length > 0) {
-    return recv.compatibleWith.includes(send.id)
-  }
-  // Fallback: allow if different symbols
-  return send.symbol !== recv.symbol
+  return send.id !== recv.id
 }
 
 function MethodCard({ method, selected, disabled, onClick, locked, onLockedClick }) {
@@ -184,9 +172,8 @@ function SendPanel({ sendMethod, recvMethod, onSelect, activeSend, user, onLocke
 function ReceivePanel({ sendMethod, recvMethod, onSelect, activeRecv, user }) {
   const { lang } = useLang()
   const regularMethods = activeRecv.filter(m => m.type !== 'wallet')
-  // Wallet-type receive methods: only show if user is logged in AND send method is compatible
   const walletMethods  = activeRecv.filter(m => m.type === 'wallet')
-  const showWallets = !!user && walletMethods.length > 0
+  const showWallets = !!user && walletMethods.length > 0 && (sendMethod?.type === 'crypto' || sendMethod?.symbol === 'USDT')
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border-1)", borderRadius: 22, overflow: "hidden", flex: 1 }}>
       <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid var(--border-1)", background: "linear-gradient(135deg,rgba(0,229,160,0.05),rgba(0,210,255,0.03))" }}>
@@ -294,7 +281,7 @@ function MobileMethodCard({ method, selected, disabled, onClick, locked, onLocke
 function MobileExchangeSelector({ sendMethod, recvMethod, onSend, onRecv, bothReady, lang, activeSend, activeRecv, user, onLockedClick }) {
   // Wallet-type receive methods hidden for guests
   const recvMethods = activeRecv.filter(m =>
-    m.type !== 'wallet' || !!user
+    m.type !== 'wallet' || (!!user && (sendMethod?.type === 'crypto' || sendMethod?.symbol === 'USDT'))
   )
   return (
     <>

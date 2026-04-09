@@ -32,20 +32,7 @@ function MethodIcon({ method, size = 32 }) {
 
 function isCompatible(send, recv) {
   if (!send || !recv) return true
-  // Same currency/symbol prevention
-  if (send.symbol === recv.symbol && send.symbol !== 'USDT') return false
-  // For USDT: prevent if both are same type (e.g. both crypto USDT)
-  if (send.symbol === recv.symbol && send.type === recv.type) return false
-
-  // Use compatibleWith arrays from database
-  if (send.compatibleWith && send.compatibleWith.length > 0) {
-    return send.compatibleWith.includes(recv.id)
-  }
-  if (recv.compatibleWith && recv.compatibleWith.length > 0) {
-    return recv.compatibleWith.includes(send.id)
-  }
-  // Fallback: allow if different symbols
-  return send.symbol !== recv.symbol
+  return send.id !== recv.id
 }
 
 function SendRow({ method, selected, onSelect, disabled, locked, onLockedClick }) {
