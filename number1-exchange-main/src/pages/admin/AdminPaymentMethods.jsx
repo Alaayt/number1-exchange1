@@ -7,19 +7,52 @@ import AdminLayout from '../../components/admin/AdminLayout'
 import { adminAPI } from '../../services/api'
 import { CRYPTO_PRESETS as CRYPTO_SUGGESTIONS, uid } from '../../components/admin/adminConstants'
 
-// ── Presets for quick-add ───────────────────────────────────────
+// ── Presets for quick-add (Send) ──────────────────────────────────
 const SEND_PRESETS = [
-  { name: 'Vodafone Cash', symbol: 'EGP', type: 'egp', color: '#e50000', img: '/images/vodafone.png', rateKey: 'EGP_VODAFONE', paymentMethodKey: 'VODAFONE_CASH' },
-  { name: 'InstaPay', symbol: 'EGP', type: 'egp', color: '#6a0dad', img: '/images/instapay.png', rateKey: 'EGP_INSTAPAY', paymentMethodKey: 'INSTAPAY' },
-  { name: 'Fawry', symbol: 'EGP', type: 'egp', color: '#f97316', img: '/images/fawry.png', rateKey: 'EGP_FAWRY', paymentMethodKey: 'FAWRY' },
-  { name: 'Orange Cash', symbol: 'EGP', type: 'egp', color: '#ff7700', img: '/images/orange.png', rateKey: 'EGP_ORANGE', paymentMethodKey: 'ORANGE_CASH' },
-  { name: 'USDT TRC20', symbol: 'USDT', type: 'crypto', color: '#26a17b', img: '/images/usdt.png', rateKey: 'USDT', paymentMethodKey: 'USDT_TRC20' },
-  { name: 'MoneyGo USD', symbol: 'MGO', type: 'moneygo', color: '#00c17c', img: '/images/moneygo.png', rateKey: 'MGO', paymentMethodKey: 'MONEYGO' },
+  // ── محافظ مصرية ──
+  { id: 'vodafone-send', name: 'Vodafone Cash', symbol: 'EGP', type: 'egp', color: '#e50000', img: '/images/vodafone.png', rateKey: 'EGP_VODAFONE', paymentMethodKey: 'VODAFONE_CASH', _cat: 'محافظ مصرية' },
+  { id: 'instapay-send', name: 'InstaPay', symbol: 'EGP', type: 'egp', color: '#6a0dad', img: '/images/instapay.png', rateKey: 'EGP_INSTAPAY', paymentMethodKey: 'INSTAPAY', _cat: 'محافظ مصرية' },
+  { id: 'fawry-send', name: 'Fawry', symbol: 'EGP', type: 'egp', color: '#f97316', img: '/images/fawry.png', rateKey: 'EGP_FAWRY', paymentMethodKey: 'FAWRY', _cat: 'محافظ مصرية' },
+  { id: 'orange-send', name: 'Orange Cash', symbol: 'EGP', type: 'egp', color: '#ff7700', img: '/images/orange.png', rateKey: 'EGP_ORANGE', paymentMethodKey: 'ORANGE_CASH', _cat: 'محافظ مصرية' },
+  { id: 'wepay-send', name: 'WE Pay', symbol: 'EGP', type: 'egp', color: '#06b6d4', img: null, icon: '📡', rateKey: 'EGP_WEPAY', paymentMethodKey: 'WE_PAY', _cat: 'محافظ مصرية' },
+  { id: 'etisalat-send', name: 'Etisalat Cash', symbol: 'EGP', type: 'egp', color: '#059669', img: null, icon: '📱', rateKey: 'EGP_ETISALAT', paymentMethodKey: 'ETISALAT_CASH', _cat: 'محافظ مصرية' },
+  { id: 'meeza-send', name: 'Meeza', symbol: 'EGP', type: 'egp', color: '#10b981', img: null, icon: '💳', rateKey: 'EGP_MEEZA', paymentMethodKey: 'MEEZA', _cat: 'محافظ مصرية' },
+  // ── عملات رقمية ──
+  { id: 'usdt-trc-send', name: 'USDT TRC20', symbol: 'USDT', type: 'crypto', color: '#26a17b', img: '/images/usdt.png', rateKey: 'USDT', paymentMethodKey: 'USDT_TRC20', _cat: 'عملات رقمية' },
+  { id: 'usdt-erc-send', name: 'USDT ERC20', symbol: 'USDT', type: 'crypto', color: '#26a17b', img: '/images/usdt.png', rateKey: 'USDT', paymentMethodKey: 'USDT_ERC20', _cat: 'عملات رقمية' },
+  { id: 'btc-send', name: 'Bitcoin', symbol: 'BTC', type: 'crypto', color: '#f7931a', img: null, icon: '₿', rateKey: 'BTC', paymentMethodKey: 'BTC', _cat: 'عملات رقمية' },
+  { id: 'eth-send', name: 'Ethereum', symbol: 'ETH', type: 'crypto', color: '#627eea', img: null, icon: 'Ξ', rateKey: 'ETH', paymentMethodKey: 'ETH', _cat: 'عملات رقمية' },
+  { id: 'bnb-send', name: 'BNB', symbol: 'BNB', type: 'crypto', color: '#f3ba2f', img: null, icon: '⬡', rateKey: 'BNB', paymentMethodKey: 'BNB', _cat: 'عملات رقمية' },
+  { id: 'ltc-send', name: 'Litecoin', symbol: 'LTC', type: 'crypto', color: '#bfbbbb', img: null, icon: 'Ł', rateKey: 'LTC', paymentMethodKey: 'LTC', _cat: 'عملات رقمية' },
+  { id: 'sol-send', name: 'Solana', symbol: 'SOL', type: 'crypto', color: '#00ffa3', img: null, icon: '◎', rateKey: 'SOL', paymentMethodKey: 'SOL', _cat: 'عملات رقمية' },
+  { id: 'ton-send', name: 'Toncoin', symbol: 'TON', type: 'crypto', color: '#0098ea', img: null, icon: '💎', rateKey: 'TON', paymentMethodKey: 'TON', _cat: 'عملات رقمية' },
+  // ── أخرى ──
+  { id: 'mgo-send', name: 'MoneyGo USD', symbol: 'MGO', type: 'moneygo', color: '#00c17c', img: '/images/moneygo.png', rateKey: 'MGO', paymentMethodKey: 'MONEYGO', _cat: 'أخرى' },
+  { id: 'wallet-send', name: 'محفظة داخلية', symbol: 'USDT', type: 'wallet', color: '#378ADD', img: null, icon: '💼', rateKey: 'INTERNAL', paymentMethodKey: 'WALLET', _cat: 'أخرى' },
 ]
 
+// ── Presets for quick-add (Receive) ──────────────────────────────
 const RECV_PRESETS = [
-  { name: 'MoneyGo USD', symbol: 'MGO', type: 'moneygo', color: '#00c17c', img: '/images/moneygo.png', rateKey: 'MGO', placeholder: 'U-XXXXXXXX' },
-  { name: 'USDT TRC20', symbol: 'USDT', type: 'crypto', color: '#26a17b', img: '/images/usdt.png', rateKey: 'USDT', placeholder: 'T...' },
+  // ── محافظ مصرية ──
+  { id: 'vodafone-recv', name: 'Vodafone Cash', symbol: 'EGP', type: 'egp', color: '#e50000', img: '/images/vodafone.png', rateKey: 'EGP_VODAFONE', placeholder: '01XXXXXXXXX', _cat: 'محافظ مصرية' },
+  { id: 'instapay-recv', name: 'InstaPay', symbol: 'EGP', type: 'egp', color: '#6a0dad', img: '/images/instapay.png', rateKey: 'EGP_INSTAPAY', placeholder: 'اسم المستخدم أو رقم الهاتف', _cat: 'محافظ مصرية' },
+  { id: 'fawry-recv', name: 'Fawry', symbol: 'EGP', type: 'egp', color: '#f97316', img: '/images/fawry.png', rateKey: 'EGP_FAWRY', placeholder: 'رقم Fawry', _cat: 'محافظ مصرية' },
+  { id: 'orange-recv', name: 'Orange Cash', symbol: 'EGP', type: 'egp', color: '#ff7700', img: '/images/orange.png', rateKey: 'EGP_ORANGE', placeholder: '01XXXXXXXXX', _cat: 'محافظ مصرية' },
+  { id: 'wepay-recv', name: 'WE Pay', symbol: 'EGP', type: 'egp', color: '#06b6d4', img: null, icon: '📡', rateKey: 'EGP_WEPAY', placeholder: '01XXXXXXXXX', _cat: 'محافظ مصرية' },
+  { id: 'etisalat-recv', name: 'Etisalat Cash', symbol: 'EGP', type: 'egp', color: '#059669', img: null, icon: '📱', rateKey: 'EGP_ETISALAT', placeholder: '01XXXXXXXXX', _cat: 'محافظ مصرية' },
+  { id: 'meeza-recv', name: 'Meeza', symbol: 'EGP', type: 'egp', color: '#10b981', img: null, icon: '💳', rateKey: 'EGP_MEEZA', placeholder: 'رقم البطاقة', _cat: 'محافظ مصرية' },
+  // ── عملات رقمية ──
+  { id: 'usdt-recv', name: 'USDT TRC20', symbol: 'USDT', type: 'crypto', color: '#26a17b', img: '/images/usdt.png', rateKey: 'USDT', placeholder: 'T...', _cat: 'عملات رقمية' },
+  { id: 'usdt-erc-recv', name: 'USDT ERC20', symbol: 'USDT', type: 'crypto', color: '#26a17b', img: '/images/usdt.png', rateKey: 'USDT', placeholder: '0x...', _cat: 'عملات رقمية' },
+  { id: 'btc-recv', name: 'Bitcoin', symbol: 'BTC', type: 'crypto', color: '#f7931a', img: null, icon: '₿', rateKey: 'BTC', placeholder: 'bc1... or 1...', _cat: 'عملات رقمية' },
+  { id: 'eth-recv', name: 'Ethereum', symbol: 'ETH', type: 'crypto', color: '#627eea', img: null, icon: 'Ξ', rateKey: 'ETH', placeholder: '0x...', _cat: 'عملات رقمية' },
+  { id: 'bnb-recv', name: 'BNB', symbol: 'BNB', type: 'crypto', color: '#f3ba2f', img: null, icon: '⬡', rateKey: 'BNB', placeholder: 'bnb1...', _cat: 'عملات رقمية' },
+  { id: 'ltc-recv', name: 'Litecoin', symbol: 'LTC', type: 'crypto', color: '#bfbbbb', img: null, icon: 'Ł', rateKey: 'LTC', placeholder: 'L... or ltc1...', _cat: 'عملات رقمية' },
+  { id: 'sol-recv', name: 'Solana', symbol: 'SOL', type: 'crypto', color: '#00ffa3', img: null, icon: '◎', rateKey: 'SOL', placeholder: 'عنوان Solana', _cat: 'عملات رقمية' },
+  { id: 'ton-recv', name: 'Toncoin', symbol: 'TON', type: 'crypto', color: '#0098ea', img: null, icon: '💎', rateKey: 'TON', placeholder: 'EQ...', _cat: 'عملات رقمية' },
+  // ── أخرى ──
+  { id: 'mgo-recv', name: 'MoneyGo USD', symbol: 'MGO', type: 'moneygo', color: '#00c17c', img: '/images/moneygo.png', rateKey: 'MGO', placeholder: 'U-XXXXXXXX', _cat: 'أخرى' },
+  { id: 'wallet-recv', name: 'محفظة داخلية', symbol: 'USDT', type: 'wallet', color: '#378ADD', img: null, icon: '💼', rateKey: 'INTERNAL', placeholder: '', _cat: 'أخرى' },
 ]
 
 const WALLET_SUGGESTIONS = [
@@ -553,31 +586,62 @@ function ExchangeMethodCard({ method, direction, otherMethods, onToggle, onEdit,
   )
 }
 
-// ── AddMethodMenu ───────────────────────────────────────────
+// ── AddMethodMenu — categorized with section headers ─────────
 function AddMethodMenu({ presets, existingIds, onSelect, onCustom, onClose }) {
+  const available = presets.filter(p => !existingIds.includes(p.id))
+  const groups = {}
+  available.forEach(item => {
+    const cat = item._cat || '\u0623\u062e\u0631\u0649'
+    if (!groups[cat]) groups[cat] = []
+    groups[cat].push(item)
+  })
+  const catOrder = ['\u0645\u062d\u0627\u0641\u0638 \u0645\u0635\u0631\u064a\u0629', '\u0639\u0645\u0644\u0627\u062a \u0631\u0642\u0645\u064a\u0629', '\u0623\u062e\u0631\u0649']
+  const sortedCats = catOrder.filter(c => groups[c])
+
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
-      <div className="pm-suggest-menu">
-        <div className="pm-suggest-header">{'\u0627\u062e\u062a\u0631 \u0645\u0646 \u0627\u0644\u0642\u0627\u0626\u0645\u0629'}</div>
-        {presets.filter(p => !existingIds.includes(p.id)).map((item, i) => (
-          <button key={i} className="pm-suggest-btn" onClick={() => onSelect(item)}>
-            <div className="pm-suggest-row">
-              {item.img
-                ? <div style={{ width: 22, height: 22, borderRadius: '50%', overflow: 'hidden', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
-                    <img src={item.img} alt={item.name} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
-                  </div>
-                : <span style={{ fontSize: 16, color: item.color, fontWeight: 800, minWidth: 22, textAlign: 'center' }}>{item.icon || item.symbol}</span>
-              }
-              <div>
-                <div className="pm-suggest-name">{item.name}</div>
-                <div className="pm-suggest-sub">{item.symbol} {'\u00b7'} {item.type}</div>
-              </div>
+      <div className="pm-suggest-menu" style={{ maxHeight: 420, overflowY: 'auto' }}>
+        <div className="pm-suggest-header">{'\u0627\u062e\u062a\u0631 \u0645\u062d\u0641\u0638\u0629 \u0623\u0648 \u0639\u0645\u0644\u0629 \u0644\u0644\u0625\u0636\u0627\u0641\u0629'}</div>
+        {available.length === 0 && (
+          <div style={{ padding: '16px 14px', color: '#64748b', fontSize: '0.78rem', textAlign: 'center' }}>
+            {'\u062a\u0645\u062a \u0625\u0636\u0627\u0641\u0629 \u062c\u0645\u064a\u0639 \u0627\u0644\u062e\u064a\u0627\u0631\u0627\u062a \u0627\u0644\u0645\u062a\u0627\u062d\u0629'}
+          </div>
+        )}
+        {sortedCats.map(cat => (
+          <div key={cat}>
+            <div style={{
+              padding: '8px 14px 4px', fontSize: '0.65rem', fontWeight: 800,
+              color: 'var(--cyan)', fontFamily: "'JetBrains Mono',monospace",
+              letterSpacing: 0.5, borderTop: '1px solid var(--al-border)',
+              background: 'rgba(0,210,255,0.03)'
+            }}>
+              {cat}
             </div>
-          </button>
+            {groups[cat].map((item, i) => (
+              <button key={i} className="pm-suggest-btn" onClick={() => onSelect(item)}>
+                <div className="pm-suggest-row">
+                  {item.img
+                    ? <div style={{ width: 24, height: 24, borderRadius: '50%', overflow: 'hidden', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.1)', flexShrink: 0 }}>
+                        <img src={item.img} alt={item.name} style={{ width: '80%', height: '80%', objectFit: 'contain' }} />
+                      </div>
+                    : <div style={{ width: 24, height: 24, borderRadius: '50%', background: `${item.color}20`, border: `1.5px solid ${item.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 12, color: item.color, fontWeight: 800 }}>{item.icon || item.symbol}</span>
+                      </div>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="pm-suggest-name">{item.name}</div>
+                    <div className="pm-suggest-sub">{item.symbol} {'\u00b7'} {item.type}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         ))}
         <div className="pm-suggest-divider" />
-        <button className="pm-suggest-btn pm-suggest-btn--custom" onClick={onCustom}>{'\u270f \u0625\u0636\u0627\u0641\u0629 \u0645\u062e\u0635\u0635\u0629'}</button>
+        <button className="pm-suggest-btn pm-suggest-btn--custom" onClick={onCustom}>
+          {'\u270f \u0625\u0636\u0627\u0641\u0629 \u0645\u062e\u0635\u0635\u0629 (\u0645\u062d\u0641\u0638\u0629 \u0623\u0648 \u0639\u0645\u0644\u0629 \u062c\u062f\u064a\u062f\u0629)'}
+        </button>
       </div>
     </>
   )
