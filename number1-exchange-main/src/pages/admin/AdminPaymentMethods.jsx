@@ -278,12 +278,12 @@ export default function AdminPaymentMethods() {
           Dynamic Exchange Methods — Send
       ══════════════════════════════════════════════════ */}
       <div className="em-section">
-        <div className="em-section-title">
-          <span className="em-icon">{'\ud83d\udce4'}</span>
-          {'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u2014 \u0623\u0646\u062a \u062a\u0631\u0633\u0644'}
-          <span style={{ marginRight: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="em-icon">{'\ud83d\udce4'}</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--al-text-primary)' }}>{'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0625\u0631\u0633\u0627\u0644 \u2014 \u0623\u0646\u062a \u062a\u0631\u0633\u0644'}</span>
             <span className="em-count">{sendMethods.filter(m => m.enabled).length} / {sendMethods.length} {'\u0645\u0641\u0639\u0651\u0644'}</span>
-          </span>
+          </div>
           <div style={{ position: 'relative' }}>
             <button className="pm-add-btn" onClick={() => { setShowAddSend(v => !v); setShowAddRecv(false) }}>+ {'\u0625\u0636\u0627\u0641\u0629 \u0648\u0633\u064a\u0644\u0629 \u0625\u0631\u0633\u0627\u0644'}</button>
             {showAddSend && (
@@ -298,6 +298,7 @@ export default function AdminPaymentMethods() {
           </div>
         </div>
         <p className="em-section-desc">{'\u0623\u0636\u0641 \u0648\u0633\u0627\u0626\u0644 \u0625\u0631\u0633\u0627\u0644 \u062c\u062f\u064a\u062f\u0629 \u0623\u0648 \u0641\u0639\u0651\u0644/\u0639\u0637\u0651\u0644 \u0627\u0644\u062d\u0627\u0644\u064a\u0629. \u0627\u0644\u062a\u063a\u064a\u064a\u0631\u0627\u062a \u062a\u0638\u0647\u0631 \u0641\u0648\u0631\u0627\u064b \u0641\u064a \u0635\u0641\u062d\u0629 \u0627\u0644\u062a\u0628\u0627\u062f\u0644'}</p>
+
 
         <div className="em-methods-list">
           {sendMethods.length === 0 ? (
@@ -321,12 +322,12 @@ export default function AdminPaymentMethods() {
           Dynamic Exchange Methods — Receive
       ══════════════════════════════════════════════════ */}
       <div className="em-section">
-        <div className="em-section-title">
-          <span className="em-icon">{'\ud83d\udce5'}</span>
-          {'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645 \u2014 \u0623\u0646\u062a \u062a\u0633\u062a\u0644\u0645'}
-          <span style={{ marginRight: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="em-icon">{'\ud83d\udce5'}</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--al-text-primary)' }}>{'\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645 \u2014 \u0623\u0646\u062a \u062a\u0633\u062a\u0644\u0645'}</span>
             <span className="em-count">{receiveMethods.filter(m => m.enabled).length} / {receiveMethods.length} {'\u0645\u0641\u0639\u0651\u0644'}</span>
-          </span>
+          </div>
           <div style={{ position: 'relative' }}>
             <button className="pm-add-btn" onClick={() => { setShowAddRecv(v => !v); setShowAddSend(false) }}>+ {'\u0625\u0636\u0627\u0641\u0629 \u0648\u0633\u064a\u0644\u0629 \u0627\u0633\u062a\u0644\u0627\u0645'}</button>
             {showAddRecv && (
@@ -836,9 +837,9 @@ const CSS = `
     margin-bottom: 28px;
   }
   .em-section-title {
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
     font-size: 15px; font-weight: 800; color: var(--al-text-primary);
-    margin-bottom: 6px;
+    margin-bottom: 6px; position: relative;
   }
   .em-icon { font-size: 18px; }
   .em-section-desc { font-size: 12px; color: var(--al-text-muted); margin: 0 0 16px; }
