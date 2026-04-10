@@ -254,13 +254,13 @@ export default function AdminPaymentMethods() {
   }
 
   if (loading) return (
-    <AdminLayout title="\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u062f\u0641\u0639">
+    <AdminLayout title="وسائل الدفع">
       <div className="pm-center"><div className="pm-spinner" /></div>
     </AdminLayout>
   )
 
   return (
-    <AdminLayout title="\u0648\u0633\u0627\u0626\u0644 \u0627\u0644\u062f\u0641\u0639 \u0648\u0627\u0644\u0639\u0645\u0644\u0627\u062a">
+    <AdminLayout title="وسائل الدفع والعملات">
       <style>{CSS}</style>
 
       {/* Header */}
