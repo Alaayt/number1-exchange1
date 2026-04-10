@@ -59,7 +59,7 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "EGP_VODAFONE",
     paymentMethodKey: "VODAFONE_CASH",
-    compatibleWith: ["mgo-recv", "usdt-recv"],
+    compatibleWith: ["mgo-recv", "usdt-trc", "usdt-bnb"],
     sortOrder: 0,
   },
   {
@@ -73,36 +73,8 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "EGP_INSTAPAY",
     paymentMethodKey: "INSTAPAY",
-    compatibleWith: ["mgo-recv", "usdt-recv"],
+    compatibleWith: ["mgo-recv", "usdt-trc", "usdt-bnb"],
     sortOrder: 1,
-  },
-  {
-    id: "fawry",
-    name: "Fawry",
-    symbol: "EGP",
-    type: "egp",
-    color: "#f97316",
-    img: "/images/fawry.png",
-    enabled: true,
-    mode: "default",
-    rateKey: "EGP_FAWRY",
-    paymentMethodKey: "FAWRY",
-    compatibleWith: ["mgo-recv", "usdt-recv"],
-    sortOrder: 2,
-  },
-  {
-    id: "orange",
-    name: "Orange Cash",
-    symbol: "EGP",
-    type: "egp",
-    color: "#ff7700",
-    img: "/images/orange.png",
-    enabled: true,
-    mode: "default",
-    rateKey: "EGP_ORANGE",
-    paymentMethodKey: "ORANGE_CASH",
-    compatibleWith: ["mgo-recv", "usdt-recv"],
-    sortOrder: 3,
   },
   {
     id: "usdt-trc",
@@ -115,8 +87,24 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "USDT",
     paymentMethodKey: "USDT_TRC20",
+    network: "TRC20",
     compatibleWith: ["mgo-recv", "wallet-recv"],
-    sortOrder: 4,
+    sortOrder: 2,
+  },
+  {
+    id: "usdt-bnb",
+    name: "USDT BEP20",
+    symbol: "USDT",
+    type: "crypto",
+    color: "#f0b90b",
+    img: "/images/bnb.png",
+    enabled: true,
+    mode: "default",
+    rateKey: "USDT",
+    paymentMethodKey: "USDT_BEP20",
+    network: "BEP20",
+    compatibleWith: ["mgo-recv", "wallet-recv"],
+    sortOrder: 3,
   },
   {
     id: "mgo-send",
@@ -129,8 +117,8 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "MGO",
     paymentMethodKey: "MONEYGO",
-    compatibleWith: ["usdt-recv"],
-    sortOrder: 5,
+    compatibleWith: ["usdt-trc", "usdt-bnb"],
+    sortOrder: 4,
   },
   {
     id: "wallet-usdt",
@@ -143,8 +131,8 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "INTERNAL",
     paymentMethodKey: "WALLET",
-    compatibleWith: ["usdt-recv", "mgo-recv"],
-    sortOrder: 6,
+    compatibleWith: ["usdt-trc", "usdt-bnb", "mgo-recv"],
+    sortOrder: 5,
   },
 ];
 
@@ -161,18 +149,11 @@ const DEFAULT_RECEIVE = [
     mode: "default",
     rateKey: "MGO",
     placeholder: "U-XXXXXXXX",
-    compatibleWith: [
-      "vodafone",
-      "instapay",
-      "fawry",
-      "orange",
-      "usdt-trc",
-      "wallet-usdt",
-    ],
+    compatibleWith: ["vodafone", "instapay", "usdt-trc", "usdt-bnb", "wallet-usdt"],
     sortOrder: 0,
   },
   {
-    id: "usdt-recv",
+    id: "usdt-trc",
     name: "USDT TRC20",
     symbol: "USDT",
     type: "crypto",
@@ -181,20 +162,31 @@ const DEFAULT_RECEIVE = [
     enabled: true,
     mode: "default",
     rateKey: "USDT",
+    paymentMethodKey: "USDT_TRC20",
+    network: "TRC20",
     placeholder: "T...",
-    compatibleWith: [
-      "vodafone",
-      "instapay",
-      "fawry",
-      "orange",
-      "mgo-send",
-      "wallet-usdt",
-    ],
+    compatibleWith: ["vodafone", "instapay", "mgo-send", "wallet-usdt"],
     sortOrder: 1,
   },
   {
+    id: "usdt-bnb",
+    name: "USDT BEP20",
+    symbol: "USDT",
+    type: "crypto",
+    color: "#f0b90b",
+    img: "/images/bnb.png",
+    enabled: true,
+    mode: "default",
+    rateKey: "USDT",
+    paymentMethodKey: "USDT_BEP20",
+    network: "BEP20",
+    placeholder: "0x...",
+    compatibleWith: ["vodafone", "instapay", "mgo-send", "wallet-usdt"],
+    sortOrder: 2,
+  },
+  {
     id: "wallet-recv",
-    name: "\u0645\u062d\u0641\u0638\u0629 \u062f\u0627\u062e\u0644\u064a\u0629",
+    name: "محفظة داخلية",
     symbol: "USDT",
     type: "wallet",
     color: "#378ADD",
@@ -203,10 +195,28 @@ const DEFAULT_RECEIVE = [
     mode: "default",
     rateKey: "INTERNAL",
     placeholder: "",
-    compatibleWith: ["usdt-trc"],
-    sortOrder: 2,
+    compatibleWith: ["usdt-trc", "usdt-bnb"],
+    sortOrder: 3,
   },
 ];
+
+// Patch a method array: fill empty name/symbol/type from the defaults map
+function patchMethods(methods, defaults) {
+  const defMap = {};
+  defaults.forEach(d => { defMap[d.id] = d; });
+  return methods.map(m => {
+    const def = defMap[m.id] || {};
+    const patched = { ...m };
+    if (!patched.name   || !patched.name.trim())   patched.name   = def.name   || m.id;
+    if (!patched.symbol || !patched.symbol.trim())  patched.symbol = def.symbol || 'USDT';
+    if (!patched.type   || !patched.type.trim())    patched.type   = def.type   || 'custom';
+    if (!patched.rateKey           && def.rateKey)           patched.rateKey           = def.rateKey;
+    if (!patched.paymentMethodKey  && def.paymentMethodKey)  patched.paymentMethodKey  = def.paymentMethodKey;
+    if (!patched.color             && def.color)             patched.color             = def.color;
+    if (!patched.img  && def.img)  patched.img  = def.img;
+    return patched;
+  });
+}
 
 exchangeMethodSchema.statics.getSingleton = async function () {
   let doc = await this.findOne();
@@ -215,7 +225,25 @@ exchangeMethodSchema.statics.getSingleton = async function () {
       sendMethods: DEFAULT_SEND,
       receiveMethods: DEFAULT_RECEIVE,
     });
+    return doc;
   }
+
+  // ── Migration: patch any methods with empty name/symbol from defaults ──
+  const needsPatch =
+    doc.sendMethods.some(m => !m.name || !m.symbol) ||
+    doc.receiveMethods.some(m => !m.name || !m.symbol);
+
+  if (needsPatch) {
+    const patchedSend = patchMethods(doc.sendMethods, DEFAULT_SEND);
+    const patchedRecv = patchMethods(doc.receiveMethods, DEFAULT_RECEIVE);
+    doc = await this.findOneAndUpdate(
+      { _id: doc._id },
+      { $set: { sendMethods: patchedSend, receiveMethods: patchedRecv } },
+      { new: true }
+    );
+    console.log('[ExchangeMethod] Auto-patched methods with missing name/symbol.');
+  }
+
   return doc;
 };
 

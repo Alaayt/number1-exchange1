@@ -1100,4 +1100,17 @@ router.put("/exchange-methods", async (req, res) => {
   }
 });
 
+// ─── POST /api/admin/exchange-methods/reset ──────────────────────────────────
+router.post("/exchange-methods/reset", async (req, res) => {
+  try {
+    const ExchangeMethod = require("../models/ExchangeMethod");
+    await ExchangeMethod.deleteMany({});
+    const doc = await ExchangeMethod.getSingleton(); // re-creates from DEFAULT_SEND/RECEIVE
+    res.json({ success: true, message: "تم إعادة تعيين وسائل التبادل للافتراضيات.", sendMethods: doc.sendMethods, receiveMethods: doc.receiveMethods });
+  } catch (error) {
+    console.error("Exchange methods reset error:", error);
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
 module.exports = router;
