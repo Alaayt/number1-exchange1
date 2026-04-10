@@ -336,6 +336,8 @@ export default function ExchangeFormPage({ onOpenAuth }) {
 
   if (!sendMethod || !recvMethod) return null
 
+
+  
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', direction: 'rtl', fontFamily: "'Cairo','Tajawal',sans-serif" }}>
       <style>{CSS}</style>
