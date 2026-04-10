@@ -56,18 +56,6 @@ const RECV_PRESETS = [
 ]
 
 
-const TYPE_OPTIONS = [
-  { value: 'egp', label: 'EGP \u062c\u0646\u064a\u0647 \u0645\u0635\u0631\u064a' },
-  { value: 'crypto', label: '\u0639\u0645\u0644\u0629 \u0631\u0642\u0645\u064a\u0629' },
-  { value: 'moneygo', label: 'MoneyGo' },
-  { value: 'wallet', label: '\u0645\u062d\u0641\u0638\u0629 \u062f\u0627\u062e\u0644\u064a\u0629' },
-  { value: 'custom', label: '\u0645\u062e\u0635\u0635' },
-]
-
-const MODE_OPTIONS = [
-  { value: 'default', label: '\u0627\u0641\u062a\u0631\u0627\u0636\u064a' },
-  { value: 'custom', label: '\u0645\u062e\u0635\u0635' },
-]
 
 function newSendMethod(preset = {}) {
   return {
@@ -406,82 +394,16 @@ function ExchangeMethodCard({ method, direction, otherMethods, onToggle, onEdit,
         {/* Expanded edit panel */}
         {expanded && (
           <div className="pm-edit-panel">
-            <div className="pm-field-grid pm-field-grid--3">
-              <Field label="ID">
-                <input className="pm-input pm-input--mono" value={m.id} onChange={e => onEdit('id', e.target.value)} />
-              </Field>
-              <Field label={'\u0627\u0644\u0627\u0633\u0645'}>
-                <input className="pm-input" value={m.name} onChange={e => onEdit('name', e.target.value)} />
-              </Field>
-              <Field label={'\u0627\u0644\u0631\u0645\u0632'}>
-                <input className="pm-input pm-input--mono" placeholder="EGP, USDT, MGO" value={m.symbol} onChange={e => onEdit('symbol', e.target.value.toUpperCase())} />
-              </Field>
-            </div>
-
-            <div className="pm-field-grid pm-field-grid--3">
-              <Field label={'\u0627\u0644\u0646\u0648\u0639'}>
-                <select className="pm-input" value={m.type} onChange={e => onEdit('type', e.target.value)}>
-                  {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </Field>
-              <Field label={'\u0627\u0644\u0648\u0636\u0639'}>
-                <select className="pm-input" value={m.mode} onChange={e => onEdit('mode', e.target.value)}>
-                  {MODE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </Field>
-              <Field label={'\u0627\u0644\u0644\u0648\u0646'}>
-                <div className="pm-color-row">
-                  <input type="color" className="pm-color-swatch" value={m.color} onChange={e => onEdit('color', e.target.value)} />
-                  <input className="pm-input pm-input--mono" value={m.color} onChange={e => onEdit('color', e.target.value)} maxLength={7} style={{ direction: 'ltr' }} />
-                </div>
-              </Field>
-            </div>
-
-            <div className="pm-field-grid pm-field-grid--2">
-              <Field label="Rate Key">
-                <input className="pm-input pm-input--mono" placeholder="EGP_VODAFONE, USDT, MGO" value={m.rateKey || ''} onChange={e => onEdit('rateKey', e.target.value)} />
-              </Field>
-              {direction === 'send' ? (
-                <Field label="Payment Method Key">
-                  <input className="pm-input pm-input--mono" placeholder="VODAFONE_CASH" value={m.paymentMethodKey || ''} onChange={e => onEdit('paymentMethodKey', e.target.value)} />
-                </Field>
-              ) : (
-                <Field label="Placeholder">
-                  <input className="pm-input" placeholder="T... or U-XXXXXXXX" value={m.placeholder || ''} onChange={e => onEdit('placeholder', e.target.value)} />
-                </Field>
-              )}
-            </div>
-
-            <div className="pm-field-grid pm-field-grid--3">
-              <Field label={'\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649'}>
-                <input className="pm-input pm-input--mono" type="number" placeholder="0 = \u0639\u0627\u0645" value={m.minAmount || ''} onChange={e => onEdit('minAmount', parseFloat(e.target.value) || 0)} />
-              </Field>
-              <Field label={'\u0627\u0644\u062d\u062f \u0627\u0644\u0623\u0642\u0635\u0649'}>
-                <input className="pm-input pm-input--mono" type="number" placeholder="0 = \u0639\u0627\u0645" value={m.maxAmount || ''} onChange={e => onEdit('maxAmount', parseFloat(e.target.value) || 0)} />
-              </Field>
-              <Field label={'\u0627\u0644\u062a\u0631\u062a\u064a\u0628'}>
-                <input className="pm-input pm-input--mono" type="number" value={m.sortOrder || 0} onChange={e => onEdit('sortOrder', parseInt(e.target.value) || 0)} />
-              </Field>
-            </div>
-
-            <div className="pm-field-grid pm-field-grid--2">
-              <Field label="رابط الصورة">
-                <input className="pm-input pm-input--mono" placeholder="/images/xxx.png" value={m.img || ''} onChange={e => onEdit('img', e.target.value || null)} style={{ direction: 'ltr' }} />
-              </Field>
-              <Field label="أيقونة (emoji)">
-                <input className="pm-input pm-input--center" value={m.icon || ''} maxLength={2} onChange={e => onEdit('icon', e.target.value || null)} />
-              </Field>
-            </div>
 
             {/* ── رقم الاستلام (للمحافظ المصرية وMoneyGo) ── */}
             {(m.type === 'egp' || m.type === 'moneygo') && (
-              <Field label="رقم الاستلام — يظهر للعميل لكي يحول عليه">
+              <Field label="رقم الاستلام — يظهر للعميل ليحول عليه">
                 <input
                   className="pm-input pm-input--mono"
                   placeholder="01XXXXXXXXX أو U-XXXXXXXX"
                   value={m.receiverNumber || ''}
                   onChange={e => onEdit('receiverNumber', e.target.value)}
-                  style={{ direction: 'ltr', textAlign: 'left', fontSize: '1rem', fontWeight: 700 }}
+                  style={{ direction: 'ltr', textAlign: 'left', fontSize: '1.05rem', fontWeight: 800, letterSpacing: 1 }}
                 />
               </Field>
             )}
