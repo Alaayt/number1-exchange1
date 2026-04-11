@@ -500,7 +500,12 @@ if (requiresRecipient && (!moneygo.recipientPhone || moneygo.recipientPhone.trim
 
   } catch (error) {
     console.error('Create order error:', error)
-    res.status(500).json({ success: false, message: 'Server error creating order.' })
+    // Surface Mongoose validation errors to the client
+    if (error.name === 'ValidationError') {
+      const msg = Object.values(error.errors).map(e => e.message).join(', ')
+      return res.status(400).json({ success: false, message: msg || 'بيانات الطلب غير صالحة.' })
+    }
+    res.status(500).json({ success: false, message: error.message || 'Server error creating order.' })
   }
 })
 
@@ -518,7 +523,7 @@ router.post('/:id/verify-usdt', async (req, res) => {
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found.' })
     }
-    if (order.payment.method !== 'USDT_TRC20') {
+    if (order.payment.method !== 'USDT_TRC20' && order.payment.method !== 'USDT_BEP20') {
       return res.status(400).json({ success: false, message: 'Order is not USDT type.' })
     }
     if (order.verification.isVerified) {
