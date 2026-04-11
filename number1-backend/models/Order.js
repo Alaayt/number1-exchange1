@@ -63,6 +63,7 @@ const orderSchema = new mongoose.Schema(
         "WALLET_TO_USDT",
         "WALLET_TO_MONEYGO",
         "MONEYGO_TO_USDT",
+        "MONEYGO_TO_WALLET",
       ],
       required: true,
     },
@@ -72,6 +73,7 @@ const orderSchema = new mongoose.Schema(
         type: String,
         enum: [
           "USDT_TRC20",
+          "USDT_BEP20",
           "VODAFONE_CASH",
           "ORANGE_CASH",
           "FAWRY",
@@ -182,20 +184,29 @@ orderSchema.pre("save", async function (next) {
 
   // ── Validate amount against per-method limits ──
   if (this.isNew) {
-    const PaymentMethod = require("./PaymentMethod");
-    const { min, max } = await PaymentMethod.getLimits(
-      this.payment.method,
-      this.payment.currencySent,
-    );
-    const amount = parseFloat(this.payment.amountSent);
-    if (amount < min)
-      throw new Error(
-        `المبلغ أقل من الحد الأدنى (${min} ${this.payment.currencySent}) لـ ${this.payment.method}`,
+    try {
+      const PaymentMethod = require("./PaymentMethod");
+      const { min, max } = await PaymentMethod.getLimits(
+        this.payment.method,
+        this.payment.currencySent,
       );
-    if (max > 0 && amount > max)
-      throw new Error(
-        `المبلغ أعلى من الحد الأقصى (${max} ${this.payment.currencySent}) لـ ${this.payment.method}`,
-      );
+      const amount = parseFloat(this.payment.amountSent);
+      if (min > 0 && amount < min)
+        throw new Error(
+          `المبلغ أقل من الحد الأدنى (${min} ${this.payment.currencySent}) لـ ${this.payment.method}`,
+        );
+      if (max > 0 && amount > max)
+        throw new Error(
+          `المبلغ أعلى من الحد الأقصى (${max} ${this.payment.currencySent}) لـ ${this.payment.method}`,
+        );
+    } catch (limitErr) {
+      // If it's a validation error (our own throw), re-throw it
+      if (limitErr.message.includes('الحد الأدنى') || limitErr.message.includes('الحد الأقصى')) {
+        throw limitErr;
+      }
+      // Otherwise log and continue — don't block order creation
+      console.warn(`[Order] PaymentMethod.getLimits failed for ${this.payment.method}:`, limitErr.message);
+    }
   }
 
   next();

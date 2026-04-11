@@ -413,7 +413,7 @@ if (requiresRecipient && (!moneygo.recipientPhone || moneygo.recipientPhone.trim
   return res.status(400).json({ success: false, message: 'معرّف المستلم مطلوب.' })
 }
     // ── التحقق من TXID إذا أرسله المستخدم ────
-    if (payment.method === 'USDT_TRC20' && payment.txHash) {
+    if ((payment.method === 'USDT_TRC20' || payment.method === 'USDT_BEP20') && payment.txHash) {
       // منع استخدام نفس الـ TXID مرتين
       const duplicate = await Order.findOne({ 'payment.txHash': payment.txHash })
       if (duplicate) {
