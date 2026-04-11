@@ -353,10 +353,11 @@ router.post('/', optionalProtect, async (req, res) => {
         USDT: rateDoc.availableUsdt ?? rateDoc.maxUsdt ?? 10000,
         MGO:  rateDoc.availableMgo  ?? rateDoc.maxMgo  ?? 10000,
       }
+      // max = available liquidity directly — no separate ceiling
       const globalLimits = {
-        EGP:  { min: rateDoc.minEgp  || 100, max: Math.min(rateDoc.maxEgp  || 300000, availableByCurrency.EGP)  },
-        USDT: { min: rateDoc.minUsdt || 10,  max: Math.min(rateDoc.maxUsdt || 10000,   availableByCurrency.USDT) },
-        MGO:  { min: rateDoc.minMgo  || 10,  max: Math.min(rateDoc.maxMgo  || 10000,   availableByCurrency.MGO)  },
+        EGP:  { min: rateDoc.minEgp  || 100, max: availableByCurrency.EGP  },
+        USDT: { min: rateDoc.minUsdt || 10,  max: availableByCurrency.USDT },
+        MGO:  { min: rateDoc.minMgo  || 10,  max: availableByCurrency.MGO  },
       }
 
       const effectiveMin = sendMin > 0 ? sendMin : (globalLimits[currency]?.min || 0)

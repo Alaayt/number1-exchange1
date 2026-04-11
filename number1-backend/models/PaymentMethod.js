@@ -43,23 +43,11 @@ paymentMethodSchema.statics.getLimits = async function (methodId, currency) {
     const Rate = require("./Rate");
     const rateDoc = await Rate.getSingleton();
     if (currency === "EGP")
-      return {
-        min: rateDoc.minEgp,
-        max: Math.min(rateDoc.maxEgp, rateDoc.availableEgp ?? rateDoc.maxEgp),
-      };
+      return { min: rateDoc.minEgp,  max: rateDoc.availableEgp  ?? 0 };
     if (currency === "USDT")
-      return {
-        min: rateDoc.minUsdt,
-        max: Math.min(
-          rateDoc.maxUsdt,
-          rateDoc.availableUsdt ?? rateDoc.maxUsdt,
-        ),
-      };
+      return { min: rateDoc.minUsdt, max: rateDoc.availableUsdt ?? 0 };
     if (currency === "MGO")
-      return {
-        min: rateDoc.minMgo,
-        max: Math.min(rateDoc.maxMgo, rateDoc.availableMgo ?? rateDoc.maxMgo),
-      };
+      return { min: rateDoc.minMgo,  max: rateDoc.availableMgo  ?? 0 };
     return { min: 0, max: 0 };
   }
   return { min: method.minAmount, max: method.maxAmount };

@@ -31,14 +31,15 @@ router.get("/rates", async (req, res) => {
     const minUsdt = doc.minUsdt || doc.minOrderUsdt || 10;
     const minMgo  = doc.minMgo  || 10;
 
-    // ── الرصيد المتاح (الحد الأقصى الفعلي) ───
+    // ── الرصيد المتاح = الحد الأقصى (يتحدث تلقائياً مع كل طلب مكتمل) ──
     const availableEgp  = doc.availableEgp  ?? doc.maxEgp  ?? 300000;
     const availableUsdt = doc.availableUsdt ?? doc.maxUsdt ?? 10000;
     const availableMgo  = doc.availableMgo  ?? doc.maxMgo  ?? 10000;
 
-    const maxEgp  = Math.min(doc.maxEgp  || 300000, availableEgp);
-    const maxUsdt = Math.min(doc.maxUsdt || 10000,   availableUsdt);
-    const maxMgo  = Math.min(doc.maxMgo  || 10000,   availableMgo);
+    // الحد الأقصى = الرصيد المتاح مباشرةً — لا حاجة لسقف منفصل
+    const maxEgp  = availableEgp;
+    const maxUsdt = availableUsdt;
+    const maxMgo  = availableMgo;
 
     res.json({
       success: true,
@@ -69,6 +70,7 @@ router.get("/rates", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
+
 
 // ─── GET /api/public/rates/convert ───────────
 router.get("/rates/convert", async (req, res) => {
@@ -163,9 +165,9 @@ router.get("/exchange-methods", async (req, res) => {
     const availableMgo  = rateDoc.availableMgo  ?? rateDoc.maxMgo  ?? 10000;
 
     const limitsMap = {
-      EGP:  { min: rateDoc.minEgp  || 100, max: Math.min(rateDoc.maxEgp  || 300000, availableEgp),  available: availableEgp  },
-      USDT: { min: rateDoc.minUsdt || 10,  max: Math.min(rateDoc.maxUsdt || 10000,   availableUsdt), available: availableUsdt },
-      MGO:  { min: rateDoc.minMgo  || 10,  max: Math.min(rateDoc.maxMgo  || 10000,   availableMgo),  available: availableMgo  },
+      EGP:  { min: rateDoc.minEgp  || 100, max: availableEgp,  available: availableEgp  },
+      USDT: { min: rateDoc.minUsdt || 10,  max: availableUsdt, available: availableUsdt },
+      MGO:  { min: rateDoc.minMgo  || 10,  max: availableMgo,  available: availableMgo  },
     };
 
     const enrichMethod = (m) => {

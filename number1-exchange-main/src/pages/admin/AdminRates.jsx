@@ -17,9 +17,7 @@ export default function AdminRates() {
     egpMgoBuyRate: '', egpMgoSellRate: '',
     internalBuyRate: '', internalSellRate: '',   // USDT <-> wallet
     walletMgoBuyRate: '', walletMgoSellRate: '', // wallet <-> MGO (independent)
-    minEgp: '', maxEgp: '',
-    minUsdt: '', maxUsdt: '',
-    minMgo: '', maxMgo: '',
+    minEgp: '', minUsdt: '', minMgo: '',
     availableEgp: '', availableUsdt: '', availableMgo: '',
   });
   const [loading, setLoading] = useState(true);
@@ -78,16 +76,12 @@ export default function AdminRates() {
         internalSellRate:  internal?.sellRate  ?? '',
         walletMgoBuyRate:  walletMgo?.buyRate  ?? '',
         walletMgoSellRate: walletMgo?.sellRate ?? '',
-        minEgp:           data?.minEgp       ?? '',
-        maxEgp:           data?.maxEgp       ?? '',
-        minUsdt:          data?.minUsdt      ?? data?.minOrderUsdt ?? '',
-        maxUsdt:          data?.maxUsdt      ?? data?.maxOrderUsdt ?? '',
-        minMgo:           data?.minMgo       ?? '',
-        maxMgo:           data?.maxMgo       ?? '',
-        // السيولة الحالية
-        availableEgp:     data?.availableEgp  ?? data?.maxEgp  ?? '',
-        availableUsdt:    data?.availableUsdt ?? data?.maxUsdt ?? '',
-        availableMgo:     data?.availableMgo  ?? data?.maxMgo  ?? '',
+        minEgp:       data?.minEgp  ?? '',
+        minUsdt:      data?.minUsdt ?? data?.minOrderUsdt ?? '',
+        minMgo:       data?.minMgo  ?? '',
+        availableEgp:  data?.availableEgp  ?? '',
+        availableUsdt: data?.availableUsdt ?? '',
+        availableMgo:  data?.availableMgo  ?? '',
       });
     } catch { setError('فشل تحميل الأسعار'); }
     finally  { setLoading(false); }
@@ -126,20 +120,24 @@ export default function AdminRates() {
         { from: 'MGO',          to: 'INTERNAL', buyRate: wMgoBuy,   sellRate: wMgoSell,   label: 'MoneyGo → محفظة داخلية',   enabled: true },
       ];
 
+      const avEgp  = parseFloat(rates.availableEgp)  || 0;
+      const avUsdt = parseFloat(rates.availableUsdt) || 0;
+      const avMgo  = parseFloat(rates.availableMgo)  || 0;
+
       await adminAPI.saveRates({
         pairs,
         minEgp:  parseFloat(rates.minEgp)  || 0,
-        maxEgp:  parseFloat(rates.maxEgp)  || 0,
         minUsdt: parseFloat(rates.minUsdt) || 0,
-        maxUsdt: parseFloat(rates.maxUsdt) || 0,
         minMgo:  parseFloat(rates.minMgo)  || 0,
-        maxMgo:  parseFloat(rates.maxMgo)  || 0,
-        // السيولة — يمكن للأدمن ضبطها يدوياً
-        availableEgp:  parseFloat(rates.availableEgp)  || parseFloat(rates.maxEgp)  || 0,
-        availableUsdt: parseFloat(rates.availableUsdt) || parseFloat(rates.maxUsdt) || 0,
-        availableMgo:  parseFloat(rates.availableMgo)  || parseFloat(rates.maxMgo)  || 0,
+        // max = available (kept in sync for backward compat)
+        maxEgp:  avEgp,
+        maxUsdt: avUsdt,
+        maxMgo:  avMgo,
+        availableEgp:  avEgp,
+        availableUsdt: avUsdt,
+        availableMgo:  avMgo,
         minOrderUsdt: parseFloat(rates.minUsdt) || 0,
-        maxOrderUsdt: parseFloat(rates.maxUsdt) || 0,
+        maxOrderUsdt: avUsdt,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 4000);
@@ -149,10 +147,7 @@ export default function AdminRates() {
 
   if (loading) return <AdminLayout><div style={{ padding: 80, textAlign: 'center', color: '#6e7681' }}>جاري التحميل...</div></AdminLayout>;
 
-  // نسبة الاستخدام لكل عملة
-  const egpUsage  = rates.maxEgp  ? ((1 - (parseFloat(rates.availableEgp)  || 0) / (parseFloat(rates.maxEgp)  || 1)) * 100).toFixed(1) : 0
-  const usdtUsage = rates.maxUsdt ? ((1 - (parseFloat(rates.availableUsdt) || 0) / (parseFloat(rates.maxUsdt) || 1)) * 100).toFixed(1) : 0
-  const mgoUsage  = rates.maxMgo  ? ((1 - (parseFloat(rates.availableMgo)  || 0) / (parseFloat(rates.maxMgo)  || 1)) * 100).toFixed(1) : 0
+  const liquidityColor = (val) => parseFloat(val) <= 0 ? '#f87171' : parseFloat(val) < 500 ? '#fbbf24' : '#34d399'
 
   return (
     <AdminLayout>
@@ -237,29 +232,20 @@ export default function AdminRates() {
         </div>
         <div className="ar-grid-3">
           {[
-            { label: '🇪🇬 جنيه مصري', unit: 'EGP', minKey: 'minEgp', maxKey: 'maxEgp', color: '#34d399', badge: 'rgba(0,180,100,0.12)', badgeColor: '#34d399', badgeBorder: 'rgba(5,150,105,0.25)' },
-            { label: '💵 USDT / دولار', unit: 'USDT', minKey: 'minUsdt', maxKey: 'maxUsdt', color: '#26a17b', badge: 'rgba(38,161,123,0.12)', badgeColor: '#26a17b', badgeBorder: 'rgba(38,161,123,0.25)' },
-            { label: '💚 MoneyGo USD', unit: 'MGO', minKey: 'minMgo', maxKey: 'maxMgo', color: '#00c17c', badge: 'rgba(0,193,124,0.12)', badgeColor: '#00c17c', badgeBorder: 'rgba(0,193,124,0.25)' },
-          ].map(({ label, unit, minKey, maxKey, color, badge, badgeColor, badgeBorder }) => (
+            { label: '🇪🇬 جنيه مصري', unit: 'EGP',  minKey: 'minEgp',  badge: 'rgba(0,180,100,0.12)',  badgeColor: '#34d399', badgeBorder: 'rgba(5,150,105,0.25)'  },
+            { label: '💵 USDT / دولار', unit: 'USDT', minKey: 'minUsdt', badge: 'rgba(38,161,123,0.12)', badgeColor: '#26a17b', badgeBorder: 'rgba(38,161,123,0.25)' },
+            { label: '💚 MoneyGo USD', unit: 'MGO',  minKey: 'minMgo',  badge: 'rgba(0,193,124,0.12)',  badgeColor: '#00c17c', badgeBorder: 'rgba(0,193,124,0.25)'  },
+          ].map(({ label, unit, minKey, badge, badgeColor, badgeBorder }) => (
             <div key={unit} className="ar-limit-box">
               <div style={{ fontSize: 13, fontWeight: 700, color: '#c9d1d9', fontFamily: 'Cairo, sans-serif', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {label}
                 <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: badge, color: badgeColor, border: `1px solid ${badgeBorder}`, fontFamily: 'JetBrains Mono', fontWeight: 700 }}>{unit}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div className="ar-field-wrap">
-                  <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأدنى</div>
-                  <div style={{ position: 'relative' }}>
-                    <input type="number" className="ar-input limit" placeholder="0" value={rates[minKey]} onChange={e => set(minKey, e.target.value)} style={{ fontSize: 15 }} />
-                    <span style={unitStyle}>{unit}</span>
-                  </div>
-                </div>
-                <div className="ar-field-wrap">
-                  <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأقصى المبدئي</div>
-                  <div style={{ position: 'relative' }}>
-                    <input type="number" className="ar-input limit" placeholder="0" value={rates[maxKey]} onChange={e => set(maxKey, e.target.value)} style={{ fontSize: 15 }} />
-                    <span style={unitStyle}>{unit}</span>
-                  </div>
+              <div className="ar-field-wrap">
+                <div className="ar-label" style={{ color: '#fbbf24' }}><span className="ar-dot" style={{ background: '#f59e0b' }} />الحد الأدنى</div>
+                <div style={{ position: 'relative' }}>
+                  <input type="number" className="ar-input limit" placeholder="0" value={rates[minKey]} onChange={e => set(minKey, e.target.value)} style={{ fontSize: 15 }} />
+                  <span style={unitStyle}>{unit}</span>
                 </div>
               </div>
             </div>
@@ -267,14 +253,14 @@ export default function AdminRates() {
         </div>
       </div>
 
-      {/* ══ السيولة المتاحة ══ */}
+      {/* ══ السيولة المتاحة = الحد الأقصى ══ */}
       <div className="ar-card" style={{ borderColor: '#1e3a5f' }}>
         <div className="ar-card-header">
           <div className="ar-card-title">
             <div className="ar-section-icon" style={{ background: 'rgba(6,182,212,0.12)' }}><Droplets size={18} color="#22d3ee" /></div>
             <div>
-              <div>السيولة المتاحة</div>
-              <div style={{ fontSize: 12, color: '#6e7681', fontWeight: 400, marginTop: 2 }}>تتغير تلقائياً مع كل طلب مكتمل · يمكنك ضبطها يدوياً</div>
+              <div>السيولة المتاحة — الحد الأقصى</div>
+              <div style={{ fontSize: 12, color: '#6e7681', fontWeight: 400, marginTop: 2 }}>يتحدث تلقائياً مع كل طلب مكتمل · يمكنك ضبطه يدوياً</div>
             </div>
           </div>
           <button
@@ -289,34 +275,30 @@ export default function AdminRates() {
         </div>
         <div className="ar-grid-3">
           {[
-            { label: '🇪🇬 EGP المتاح', unit: 'EGP', key: 'availableEgp', maxKey: 'maxEgp', usage: egpUsage,  color: '#34d399', usageColor: parseFloat(egpUsage)  > 80 ? '#f87171' : parseFloat(egpUsage)  > 50 ? '#fbbf24' : '#34d399' },
-            { label: '💵 USDT المتاح', unit: 'USDT', key: 'availableUsdt', maxKey: 'maxUsdt', usage: usdtUsage, color: '#26a17b', usageColor: parseFloat(usdtUsage) > 80 ? '#f87171' : parseFloat(usdtUsage) > 50 ? '#fbbf24' : '#26a17b' },
-            { label: '💚 MGO المتاح',  unit: 'MGO', key: 'availableMgo',  maxKey: 'maxMgo',  usage: mgoUsage,  color: '#00c17c', usageColor: parseFloat(mgoUsage)  > 80 ? '#f87171' : parseFloat(mgoUsage)  > 50 ? '#fbbf24' : '#00c17c' },
-          ].map(({ label, unit, key, maxKey, usage, color, usageColor }) => (
-            <div key={unit} className="ar-limit-box" style={{ borderColor: '#1e2d3d' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#c9d1d9', fontFamily: 'Cairo, sans-serif', marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 11, color: '#6e7681', marginBottom: 12, fontFamily: 'JetBrains Mono' }}>
-                من {Number(rates[maxKey] || 0).toLocaleString()} {unit}
-              </div>
-              <div className="ar-field-wrap">
-                <div className="ar-label" style={{ color: '#22d3ee' }}><span className="ar-dot" style={{ background: '#06b6d4' }} />الرصيد الحالي</div>
-                <div style={{ position: 'relative' }}>
-                  <input type="number" className="ar-input liquid" placeholder="0" value={rates[key]} onChange={e => set(key, e.target.value)} style={{ fontSize: 15, color: usageColor }} />
-                  <span style={unitStyle}>{unit}</span>
+            { label: '🇪🇬 EGP', unit: 'EGP',  key: 'availableEgp'  },
+            { label: '💵 USDT', unit: 'USDT', key: 'availableUsdt' },
+            { label: '💚 MGO',  unit: 'MGO',  key: 'availableMgo'  },
+          ].map(({ label, unit, key }) => {
+            const col = liquidityColor(rates[key])
+            return (
+              <div key={unit} className="ar-limit-box" style={{ borderColor: '#1e2d3d' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#c9d1d9', fontFamily: 'Cairo, sans-serif', marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: 11, color: '#6e7681', marginBottom: 12, fontFamily: 'JetBrains Mono' }}>
+                  الحد الأقصى الفعلي للمعاملات
+                </div>
+                <div className="ar-field-wrap">
+                  <div className="ar-label" style={{ color: '#22d3ee' }}><span className="ar-dot" style={{ background: '#06b6d4' }} />الرصيد المتاح</div>
+                  <div style={{ position: 'relative' }}>
+                    <input type="number" className="ar-input liquid" placeholder="0" value={rates[key]} onChange={e => set(key, e.target.value)} style={{ fontSize: 15, color: col }} />
+                    <span style={unitStyle}>{unit}</span>
+                  </div>
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11, color: col, fontFamily: 'JetBrains Mono', textAlign: 'center', fontWeight: 700 }}>
+                  {parseFloat(rates[key]) <= 0 ? '⛔ نفد الرصيد' : parseFloat(rates[key]) < 500 ? '⚠ رصيد منخفض' : '✓ متاح'}
                 </div>
               </div>
-              {/* شريط الاستخدام */}
-              <div className="ar-progress-bar">
-                <div className="ar-progress-fill" style={{ width: `${Math.min(parseFloat(usage) || 0, 100)}%`, background: usageColor }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                <span style={{ fontSize: 10, color: '#6e7681', fontFamily: 'JetBrains Mono' }}>استُخدم {usage}%</span>
-                <span style={{ fontSize: 10, color: usageColor, fontFamily: 'JetBrains Mono' }}>
-                  {Number(rates[key] || 0).toLocaleString()} متبقي
-                </span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.15)', fontSize: 12, color: '#6e7681', fontFamily: 'Cairo, sans-serif' }}>
           💡 عند إكمال طلب: العملة التي يرسلها العميل <strong style={{ color: '#34d399' }}>تزيد</strong> في رصيدك · العملة التي يستلمها <strong style={{ color: '#f87171' }}>تنقص</strong> من رصيدك
