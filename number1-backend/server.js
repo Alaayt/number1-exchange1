@@ -55,50 +55,8 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/wallet', require('./routes/wallet'));
 
-// ══════════════════════════════════════════════════════════════════
-// ─── دالة تحديث السيولة ──────────────────────────────────────────
-// ══════════════════════════════════════════════════════════════════
-async function updateLiquidity(order) {
-  try {
-    const Rate  = require('./models/Rate')
-    const ot    = order.orderType || ''
-    const sent  = parseFloat(order.payment?.amountSent) || 0
-    const recv  = parseFloat(order.moneygo?.amountUSD) || parseFloat(order.exchangeRate?.finalAmountUSD) || 0
-    const cSent = order.payment?.currencySent // 'USDT' | 'EGP' | 'MGO'
-
-    const recvMap = {
-      USDT_TO_MONEYGO:       'MGO',
-      EGP_TO_MONEYGO:        'MGO',
-      EGP_WALLET_TO_MONEYGO: 'MGO',
-      WALLET_TO_MONEYGO:     'MGO',
-      EGP_TO_USDT:           'USDT',
-      MONEYGO_TO_USDT:       'USDT',
-      WALLET_TO_USDT:        'USDT',
-      USDT_TO_WALLET:        null,
-      MONEYGO_TO_WALLET:     null,
-    }
-    const cRecv = recvMap[ot]
-    const inc   = {}
-
-    if (cSent === 'EGP'  && sent > 0) inc.availableEgp  = (inc.availableEgp  || 0) + sent
-    if (cSent === 'USDT' && sent > 0) inc.availableUsdt = (inc.availableUsdt || 0) + sent
-    if (cSent === 'MGO'  && sent > 0) inc.availableMgo  = (inc.availableMgo  || 0) + sent
-
-    if (cRecv === 'EGP'  && recv > 0) inc.availableEgp  = (inc.availableEgp  || 0) - recv
-    if (cRecv === 'USDT' && recv > 0) inc.availableUsdt = (inc.availableUsdt || 0) - recv
-    if (cRecv === 'MGO'  && recv > 0) inc.availableMgo  = (inc.availableMgo  || 0) - recv
-
-    if (Object.keys(inc).length === 0) {
-      console.log(`[Liquidity] Order ${order.orderNumber} (${ot}): no change needed.`)
-      return
-    }
-
-    await Rate.findOneAndUpdate({}, { $inc: inc }, { new: true })
-    console.log(`[Liquidity] ✅ ${order.orderNumber} (${ot}) | sent:${sent} ${cSent} | recv:${recv} ${cRecv} | inc:`, inc)
-  } catch (err) {
-    console.error(`[Liquidity] ❌ ${order?.orderNumber}:`, err.message)
-  }
-}
+// ─── Balance Engine (central liquidity service) ──
+const { completeOrder, processTransaction } = require('./services/balanceEngine');
 
 // ─── Telegram Webhook ─────────────────────────
 app.post('/api/telegram/webhook', async (req, res) => {
@@ -178,7 +136,9 @@ app.post('/api/telegram/webhook', async (req, res) => {
       return res.json({ ok: true })
     }
 
-    // ── معالجة طلبات التبادل ──────────────────
+    // ══════════════════════════════════════════════
+    // ── معالجة طلبات التبادل ─────────────────────
+    // ══════════════════════════════════════════════
     const Order = require('./models/Order');
     const order = await Order.findById(orderId);
     if (!order) {
@@ -186,6 +146,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       return res.json({ ok: true });
     }
 
+    // ── Guard: already in a final status ──────────
     const finalStatuses = ['completed', 'rejected', 'cancelled'];
     if (finalStatuses.includes(order.status)) {
       await telegramService.answerCallbackQuery(
@@ -195,32 +156,67 @@ app.post('/api/telegram/webhook', async (req, res) => {
       return res.json({ ok: true });
     }
 
+    // ── Handle "complete" action — uses DB transaction via balanceEngine ──
+    if (action === 'complete') {
+      const result = await completeOrder(order, 'admin:telegram', '🎉 تم إتمام الطلب بنجاح via Telegram');
+
+      if (!result.success) {
+        await telegramService.answerCallbackQuery(
+          callbackQueryId,
+          result.error === 'already_completed'
+            ? '⚠️ الطلب مكتمل مسبقاً'
+            : `⚠️ فشل إتمام الطلب: ${result.error}`
+        );
+        return res.json({ ok: true });
+      }
+
+      // Build response message
+      let responseMsg = '🎉 تم إتمام الطلب بنجاح';
+      if (result.walletResult?.success) {
+        responseMsg += `\n💰 تم إضافة ${result.walletResult.amountAdded} USDT للمحفظة`;
+      } else if (result.walletResult && !result.walletResult.success) {
+        const reasonMessages = {
+          already_credited: '⚠️ تم الإيداع مسبقاً',
+          no_user_linked:   '⚠️ الطلب غير مرتبط بمستخدم',
+          wallet_inactive:  '⚠️ المحفظة غير نشطة',
+          invalid_amount:   '⚠️ مبلغ غير صالح',
+        };
+        responseMsg += `\n${reasonMessages[result.walletResult.reason] || '⚠️ فشل الإيداع التلقائي'}`;
+      }
+
+      console.log('💰 Telegram Balance Update:', {
+        order:   order.orderNumber,
+        send:    order.payment?.method,
+        receive: order.orderType,
+        status:  'completed'
+      });
+
+      // Update Telegram message (single call, no duplicate)
+      const msgId = cbMessage?.message_id;
+      if (msgId) await telegramService.editOrderMessage(msgId, order, 'complete');
+      await telegramService.answerCallbackQuery(callbackQueryId, responseMsg);
+
+      return res.json({ ok: true });
+    }
+
+    // ── Handle "approve" and "reject" actions (no balance change) ──
     const statusMap = {
-      approve:  { status: 'verified',  msg: '✅ تمت الموافقة — جاري المراجعة' },
-      reject:   { status: 'rejected',  msg: '❌ تم رفض الطلب'                 },
-      complete: { status: 'completed', msg: '🎉 تم إتمام الطلب بنجاح'          },
+      approve: { status: 'verified',  msg: '✅ تمت الموافقة — جاري المراجعة' },
+      reject:  { status: 'rejected',  msg: '❌ تم رفض الطلب'                 },
     };
 
     const action_data = statusMap[action];
     if (!action_data) return res.json({ ok: true });
 
-    const wasCompleted = order.status === 'completed';
     order.status = action_data.status;
     order.addTimeline(action_data.status, `${action_data.msg} via Telegram`, 'admin:telegram');
-    if (action_data.status === 'completed') order.moneygo.transferStatus = 'sent';
-    if (action_data.status === 'rejected')  order.moneygo.transferStatus = 'failed';
+    if (action_data.status === 'rejected') order.moneygo.transferStatus = 'failed';
     await order.save();
 
-    // ── تحديث السيولة عند اكتمال الطلب ──────────
-    if (action_data.status === 'completed' && !wasCompleted) {
-      await updateLiquidity(order);
-    }
-
-    const msgId = callback_query.message?.message_id;
+    // Update Telegram message (single call — fixed duplicate)
+    const msgId = cbMessage?.message_id;
     if (msgId) await telegramService.editOrderMessage(msgId, order, action);
-
     await telegramService.answerCallbackQuery(callbackQueryId, action_data.msg);
-    await telegramService.editOrderMessage(cbMessage?.message_id, order, action);
 
     res.json({ ok: true });
 
