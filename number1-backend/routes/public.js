@@ -27,27 +27,29 @@ async function calcLiquidity(doc) {
     { orderType: 1, 'payment.amountSent': 1, 'payment.currencySent': 1, 'moneygo.amountUSD': 1, 'exchangeRate.finalAmountUSD': 1 }
   ).lean()
 
-  let gainEgp = 0, gainUsdt = 0, gainMgo = 0
-  let usedEgp = 0, usedUsdt = 0, usedMgo = 0
+  let deltaEgp = 0, deltaUsdt = 0, deltaMgo = 0
 
   for (const o of orders) {
     const sent  = parseFloat(o.payment?.amountSent) || 0
-    const recv  = parseFloat(o.moneygo?.amountUSD)  || parseFloat(o.exchangeRate?.finalAmountUSD) || 0
+    const recv  = parseFloat(o.moneygo?.amountUSD) || parseFloat(o.exchangeRate?.finalAmountUSD) || 0
     const cSent = o.payment?.currencySent
     const cRecv = RECV_MAP[o.orderType]
 
-    if (cSent === 'EGP')  gainEgp  += sent
-    if (cSent === 'USDT') gainUsdt += sent
-    if (cSent === 'MGO')  gainMgo  += sent
-    if (cRecv === 'EGP')  usedEgp  += recv
-    if (cRecv === 'USDT') usedUsdt += recv
-    if (cRecv === 'MGO')  usedMgo  += recv
+    // ما أرسله العميل → رصيدنا يزيد
+    if (cSent === 'EGP')  deltaEgp  += sent
+    if (cSent === 'USDT') deltaUsdt += sent
+    if (cSent === 'MGO')  deltaMgo  += sent
+
+    // ما أرسلناه نحن للعميل → رصيدنا ينقص
+    if (cRecv === 'EGP')  deltaEgp  -= recv
+    if (cRecv === 'USDT') deltaUsdt -= recv
+    if (cRecv === 'MGO')  deltaMgo  -= recv
   }
 
   return {
-    availableEgp:  Math.max(0, (doc.maxEgp  || 0) + gainEgp  - usedEgp),
-    availableUsdt: Math.max(0, (doc.maxUsdt || 0) + gainUsdt - usedUsdt),
-    availableMgo:  Math.max(0, (doc.maxMgo  || 0) + gainMgo  - usedMgo),
+    availableEgp:  Math.max(0, (doc.maxEgp  || 0) + deltaEgp),
+    availableUsdt: Math.max(0, (doc.maxUsdt || 0) + deltaUsdt),
+    availableMgo:  Math.max(0, (doc.maxMgo  || 0) + deltaMgo),
   }
 }
 
@@ -68,7 +70,6 @@ router.get("/rates", async (req, res) => {
     const minUsdt = doc.minUsdt || doc.minOrderUsdt || 10;
     const minMgo  = doc.minMgo  || 10;
 
-    // ── السيولة تُحسب من الطلبات المكتملة ──────
     const { availableEgp, availableUsdt, availableMgo } = await calcLiquidity(doc);
 
     const maxEgp  = availableEgp;

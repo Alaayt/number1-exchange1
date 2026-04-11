@@ -15,6 +15,11 @@ router.use(protect, adminOnly);
 
 // ══════════════════════════════════════════════════════════════════
 // ─── حساب السيولة من الطلبات المكتملة ───────────────────────────
+// maxXxx = الرصيد الأصلي الذي ضبطه الأدمن
+// deltaXxx = التغيير الإجمالي بعد كل الطلبات المكتملة
+// ── مثال USDT_TO_MONEYGO: العميل يرسل 3254 USDT ويستلم 3273 MGO
+//    deltaUsdt += 3254  (استلمنا USDT → رصيد USDT يزيد)
+//    deltaMgo  -= 3273  (أرسلنا MGO   → رصيد MGO  ينقص)
 // ══════════════════════════════════════════════════════════════════
 const RECV_MAP = {
   USDT_TO_MONEYGO:       'MGO',
@@ -34,27 +39,29 @@ async function calcLiquidity(doc) {
     { orderType: 1, 'payment.amountSent': 1, 'payment.currencySent': 1, 'moneygo.amountUSD': 1, 'exchangeRate.finalAmountUSD': 1 }
   ).lean()
 
-  let gainEgp = 0, gainUsdt = 0, gainMgo = 0
-  let usedEgp = 0, usedUsdt = 0, usedMgo = 0
+  let deltaEgp = 0, deltaUsdt = 0, deltaMgo = 0
 
   for (const o of orders) {
     const sent  = parseFloat(o.payment?.amountSent) || 0
-    const recv  = parseFloat(o.moneygo?.amountUSD)  || parseFloat(o.exchangeRate?.finalAmountUSD) || 0
+    const recv  = parseFloat(o.moneygo?.amountUSD) || parseFloat(o.exchangeRate?.finalAmountUSD) || 0
     const cSent = o.payment?.currencySent
     const cRecv = RECV_MAP[o.orderType]
 
-    if (cSent === 'EGP')  gainEgp  += sent
-    if (cSent === 'USDT') gainUsdt += sent
-    if (cSent === 'MGO')  gainMgo  += sent
-    if (cRecv === 'EGP')  usedEgp  += recv
-    if (cRecv === 'USDT') usedUsdt += recv
-    if (cRecv === 'MGO')  usedMgo  += recv
+    // ما أرسله العميل → رصيدنا يزيد
+    if (cSent === 'EGP')  deltaEgp  += sent
+    if (cSent === 'USDT') deltaUsdt += sent
+    if (cSent === 'MGO')  deltaMgo  += sent
+
+    // ما أرسلناه نحن للعميل → رصيدنا ينقص
+    if (cRecv === 'EGP')  deltaEgp  -= recv
+    if (cRecv === 'USDT') deltaUsdt -= recv
+    if (cRecv === 'MGO')  deltaMgo  -= recv
   }
 
   return {
-    availableEgp:  Math.max(0, (doc.maxEgp  || 0) + gainEgp  - usedEgp),
-    availableUsdt: Math.max(0, (doc.maxUsdt || 0) + gainUsdt - usedUsdt),
-    availableMgo:  Math.max(0, (doc.maxMgo  || 0) + gainMgo  - usedMgo),
+    availableEgp:  Math.max(0, (doc.maxEgp  || 0) + deltaEgp),
+    availableUsdt: Math.max(0, (doc.maxUsdt || 0) + deltaUsdt),
+    availableMgo:  Math.max(0, (doc.maxMgo  || 0) + deltaMgo),
   }
 }
 
@@ -224,12 +231,11 @@ router.post("/telegram-webhook-internal", async (req, res) => {
     }
 
     order.status = newStatus;
-    if (newStatus === "rejected") order.moneygo.transferStatus = "failed";
+    if (newStatus === "rejected")  order.moneygo.transferStatus = "failed";
     if (newStatus === "completed") order.moneygo.transferStatus = "sent";
     order.addTimeline(newStatus, `${message_text} via Telegram`, "admin:telegram");
     await order.save();
 
-    // ── إيداع محفظة داخلية ───────────────────────
     if (action === "complete" && order.orderType === "USDT_TO_WALLET") {
       const walletCreditResult = await creditWalletFromOrder(order);
       if (walletCreditResult.success) {
@@ -258,7 +264,6 @@ router.post("/telegram-webhook-internal", async (req, res) => {
 });
 
 // ─── GET /api/admin/rates ─────────────────────
-// السيولة تُحسب تلقائياً من الطلبات المكتملة — لا تخزين ولا تحديث يدوي
 router.get("/rates", async (req, res) => {
   try {
     const doc = await Rate.getSingleton();
@@ -304,7 +309,6 @@ router.put("/rates", async (req, res) => {
     const parsedMaxUsdt = parseFloat(maxUsdt)  || parseFloat(maxOrderUsdt) || 0;
     const parsedMaxMgo  = parseFloat(maxMgo)   || 0;
 
-    // نحفظ فقط الأسعار والحدود — السيولة تُحسب تلقائياً
     const updateData = {
       pairs, updatedBy: req.user.email,
       minEgp:  parseFloat(minEgp)  || 0, maxEgp:  parsedMaxEgp,
