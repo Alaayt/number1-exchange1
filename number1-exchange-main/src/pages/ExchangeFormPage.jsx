@@ -328,6 +328,8 @@ export default function ExchangeFormPage({ onOpenAuth }) {
         }),
       })
 
+
+      
       const data = await res.json()
       if (data.success && data.order) {
         if (data.order.sessionToken) {
