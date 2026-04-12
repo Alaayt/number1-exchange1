@@ -113,10 +113,12 @@ async function processTransaction(order, opts = {}) {
 }
 
 /**
- * completeOrder — Wraps the full "complete" workflow in a DB transaction:
+ * completeOrder — Completes an order and updates liquidity + wallet.
+ * Tries MongoDB transaction first; falls back to sequential if replica set unavailable.
+ *
  *  1. Mark order as completed
  *  2. Update liquidity balances
- *  3. Credit internal wallet (if USDT_TO_WALLET)
+ *  3. Credit internal wallet (if USDT_TO_WALLET / MONEYGO_TO_WALLET)
  *
  * @param {Object} order          - The Order document (must NOT already be completed)
  * @param {string} [completedBy]  - Actor string for the timeline (e.g. 'admin:telegram')
@@ -130,8 +132,31 @@ async function completeOrder(order, completedBy = 'system', note = '') {
     return { success: false, error: 'already_completed' }
   }
 
-  const session = await mongoose.startSession()
+  // Try with transaction first (requires replica set)
+  try {
+    const result = await _completeWithTransaction(order, completedBy, note)
+    return result
+  } catch (txErr) {
+    // If transaction fails due to no replica set, fall back to sequential
+    const isNoReplicaSet = txErr.message?.includes('transaction') ||
+                           txErr.message?.includes('replica set') ||
+                           txErr.message?.includes('session') ||
+                           txErr.codeName === 'IllegalOperation'
+    if (isNoReplicaSet) {
+      console.warn(`[BalanceEngine] ⚠️ Transactions not supported — falling back to sequential for ${order.orderNumber}`)
+      return await _completeSequential(order, completedBy, note)
+    }
+    console.error(`[BalanceEngine] ❌ completeOrder failed for ${order.orderNumber}:`, txErr.message)
+    return { success: false, error: txErr.message }
+  }
+}
 
+/**
+ * Complete with MongoDB transaction (atomic — all-or-nothing).
+ * Requires replica set.
+ */
+async function _completeWithTransaction(order, completedBy, note) {
+  const session = await mongoose.startSession()
   try {
     let walletResult = null
 
@@ -152,21 +177,92 @@ async function completeOrder(order, completedBy = 'system', note = '') {
         throw new Error(`Liquidity update failed: ${balanceResult.error}`)
       }
 
-      // 3. Credit internal wallet (USDT_TO_WALLET or MONEYGO_TO_WALLET)
+      // 3. Credit internal wallet
       if (order.orderType === 'USDT_TO_WALLET' || order.orderType === 'MONEYGO_TO_WALLET') {
         walletResult = await creditWalletInTransaction(order, session)
       }
     })
 
     console.log(`[BalanceEngine] 🔥 Order ${order.orderNumber} completed atomically by ${completedBy}`)
-
     return { success: true, order, walletResult }
-  } catch (err) {
-    console.error(`[BalanceEngine] ❌ completeOrder failed for ${order.orderNumber}:`, err.message)
-    return { success: false, error: err.message }
   } finally {
     await session.endSession()
   }
+}
+
+/**
+ * Complete without transaction (sequential — fallback for standalone MongoDB).
+ * Not atomic, but works on any MongoDB deployment.
+ */
+async function _completeSequential(order, completedBy, note) {
+  try {
+    let walletResult = null
+
+    // 1. Update order status
+    order.status = 'completed'
+    order.moneygo.transferStatus = 'sent'
+    order.addTimeline(
+      'completed',
+      note || `🎉 تم إتمام الطلب بنجاح via ${completedBy}`,
+      completedBy
+    )
+    await order.save()
+
+    // 2. Update liquidity
+    const balanceResult = await processTransaction(order)
+    if (!balanceResult.success) {
+      console.error(`[BalanceEngine] ⚠️ Liquidity update failed for ${order.orderNumber}: ${balanceResult.error}`)
+      // Order is already saved as completed — log but don't revert
+    }
+
+    // 3. Credit internal wallet
+    if (order.orderType === 'USDT_TO_WALLET' || order.orderType === 'MONEYGO_TO_WALLET') {
+      walletResult = await _creditWalletSequential(order)
+    }
+
+    console.log(`[BalanceEngine] 🔥 Order ${order.orderNumber} completed sequentially by ${completedBy}`)
+    return { success: true, order, walletResult }
+  } catch (err) {
+    console.error(`[BalanceEngine] ❌ Sequential complete failed for ${order.orderNumber}:`, err.message)
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Credit wallet without transaction session (fallback).
+ */
+async function _creditWalletSequential(order) {
+  const Wallet      = require('../models/Wallet')
+  const Transaction = require('../models/Transaction')
+
+  if (!order.user) return { success: false, reason: 'no_user_linked' }
+
+  const alreadyCredited = await Transaction.findOne({
+    order: order._id, type: 'deposit', status: 'completed'
+  })
+  if (alreadyCredited) return { success: false, reason: 'already_credited' }
+
+  const amountToAdd = parseFloat(order.exchangeRate?.finalAmountUSD)
+  if (!amountToAdd || amountToAdd <= 0) return { success: false, reason: 'invalid_amount' }
+
+  let wallet = await Wallet.findOne({ user: order.user })
+  if (!wallet) wallet = await Wallet.create({ user: order.user })
+  if (!wallet.isActive) return { success: false, reason: 'wallet_inactive' }
+
+  const balanceBefore = wallet.balance
+  wallet.balance += amountToAdd
+  wallet.totalDeposited += amountToAdd
+  await wallet.save()
+
+  await Transaction.create({
+    user: order.user, wallet: wallet._id, type: 'deposit',
+    amount: amountToAdd, balanceBefore, balanceAfter: wallet.balance,
+    status: 'completed', performedBy: 'admin:telegram', order: order._id,
+    note: `إيداع تلقائي — طلب ${order.orderNumber} — TXID: ${order.payment?.txHash || 'N/A'}`
+  })
+
+  console.log(`[BalanceEngine] 💰 Wallet credited +${amountToAdd} USDT for user ${order.user} | New balance: ${wallet.balance}`)
+  return { success: true, amountAdded: amountToAdd, newBalance: wallet.balance }
 }
 
 /**

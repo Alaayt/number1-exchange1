@@ -447,6 +447,16 @@ if (requiresRecipient && (!moneygo.recipientPhone || moneygo.recipientPhone.trim
     const sessionToken = crypto.randomBytes(32).toString('hex')
     const expiresAt    = new Date(Date.now() + ORDER_LIFETIME_MS)
 
+    console.log('[Order] Creating order:', JSON.stringify({
+      orderType,
+      'payment.method': payment.method,
+      'payment.currencySent': payment.currencySent,
+      'payment.amountSent': payment.amountSent,
+      'moneygo.amountUSD': moneygo?.amountUSD,
+      'exchangeRate.appliedRate': exchangeRate?.appliedRate,
+      'exchangeRate.finalAmountUSD': exchangeRate?.finalAmountUSD,
+    }))
+
     const order = await Order.create({
       user: req.user?._id || null,
       customerName,
@@ -499,13 +509,17 @@ if (requiresRecipient && (!moneygo.recipientPhone || moneygo.recipientPhone.trim
     })
 
   } catch (error) {
-    console.error('Create order error:', error)
+    console.error('Create order error:', error.name, error.message, error.stack?.split('\n').slice(0, 5).join('\n'))
     // Surface Mongoose validation errors to the client
     if (error.name === 'ValidationError') {
       const msg = Object.values(error.errors).map(e => e.message).join(', ')
       return res.status(400).json({ success: false, message: msg || 'بيانات الطلب غير صالحة.' })
     }
-    res.status(500).json({ success: false, message: error.message || 'Server error creating order.' })
+    // Surface pre-save hook errors (they throw plain Error)
+    if (error.message && !error.message.includes('Server error')) {
+      return res.status(400).json({ success: false, message: error.message })
+    }
+    res.status(500).json({ success: false, message: 'Server error creating order.' })
   }
 })
 
