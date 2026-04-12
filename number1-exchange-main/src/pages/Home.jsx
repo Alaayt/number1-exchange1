@@ -507,6 +507,89 @@ function HeroSection({ onAbout }) {
   )
 }
 
+// ── بانر "قدّمنا واربح" ──────────────────────────────────────
+function ReferralBanner() {
+  const [hover, setHover] = useState(false)
+
+  return (
+    <a
+      href="https://t.me/nimber1"
+      target="_blank"
+      rel="noopener noreferrer"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 16,
+        marginTop: 28,
+        padding: '18px 22px',
+        borderRadius: 16,
+        background: hover
+          ? 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(245,158,11,0.08) 100%)'
+          : 'linear-gradient(135deg, rgba(251,191,36,0.07) 0%, rgba(245,158,11,0.04) 100%)',
+        border: `1px solid ${hover ? 'rgba(251,191,36,0.4)' : 'rgba(251,191,36,0.18)'}`,
+        textDecoration: 'none',
+        cursor: 'pointer',
+        transition: 'all 0.25s',
+        direction: 'rtl',
+        fontFamily: "'Cairo','Tajawal',sans-serif",
+        boxShadow: hover ? '0 4px 24px rgba(251,191,36,0.1)' : 'none',
+      }}
+    >
+      {/* النص */}
+      <div style={{ flex: 1 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5,
+        }}>
+          {/* أيقونة هدية */}
+          <span style={{ fontSize: 22, lineHeight: 1 }}>🎁</span>
+          <span style={{
+            fontSize: '1rem', fontWeight: 900,
+            color: '#fbbf24',
+            letterSpacing: '0.3px',
+          }}>
+            قدّمنا واربح
+          </span>
+          <span style={{
+            fontSize: '0.68rem', fontWeight: 700,
+            background: 'rgba(251,191,36,0.15)',
+            border: '1px solid rgba(251,191,36,0.35)',
+            color: '#fbbf24', padding: '2px 8px', borderRadius: 20,
+            fontFamily: "'JetBrains Mono',monospace",
+          }}>
+            برنامج الإحالة
+          </span>
+        </div>
+        <p style={{
+          margin: 0, fontSize: '0.82rem',
+          color: 'var(--text-2)', lineHeight: 1.6,
+        }}>
+          قدّم صديقك لمنصتنا واحصل على مكافأة عند إتمام أول طلب له — تواصل معنا لمعرفة التفاصيل
+        </p>
+      </div>
+
+      {/* السهم */}
+      <div style={{
+        flexShrink: 0,
+        width: 36, height: 36,
+        borderRadius: '50%',
+        background: 'rgba(251,191,36,0.12)',
+        border: '1px solid rgba(251,191,36,0.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'transform 0.2s',
+        transform: hover ? 'translateX(-3px)' : 'translateX(0)',
+      }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </div>
+    </a>
+  )
+}
+
 function Home({ onOpenAuth }) {
   const navigate = useNavigate()
   return (
@@ -515,6 +598,7 @@ function Home({ onOpenAuth }) {
         <div className="mobile-home-root n1-home-shell" style={{ maxWidth: 920, margin: '0 auto', padding: '0 22px' }}>
           <HeroSection onAbout={() => navigate("/about")} />
           <ExchangeSelector />
+          <ReferralBanner />
         </div>
       </section>
     </div>
