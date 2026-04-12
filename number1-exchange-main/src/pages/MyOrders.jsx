@@ -13,6 +13,7 @@ const STATUS_CONFIG = {
   completed:  { label: 'مكتمل',    color: '#00e5a0', bg: '#064e3b' },
   rejected:   { label: 'مرفوض',   color: '#f43f5e', bg: '#3d0a0a' },
   cancelled:  { label: 'ملغي',     color: '#6e7681', bg: '#21262d' },
+  expired:    { label: 'منتهي',    color: '#9ca3af', bg: '#1f2937' },
 }
 
 export default function MyOrders() {

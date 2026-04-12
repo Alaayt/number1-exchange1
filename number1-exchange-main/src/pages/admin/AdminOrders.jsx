@@ -31,6 +31,8 @@ const STATUS_TABS = [
   { value: 'processing', label: 'معالجة'    },
   { value: 'completed',  label: 'مكتمل'     },
   { value: 'rejected',   label: 'مرفوض'     },
+  { value: 'cancelled',  label: 'ملغي'      },
+  { value: 'expired',    label: 'منتهي'     },
 ]
 
 const LIMIT = 15

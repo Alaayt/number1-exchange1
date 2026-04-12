@@ -263,27 +263,30 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   console.log(`🚀 Number1 Server running on port ${PORT}`);
 
-  // ─── Cron Job: حذف الطلبات المنتهية كل دقيقة ──
+  // ─── Cron Job: تحويل الطلبات المنتهية إلى expired كل دقيقة ──
   setInterval(async () => {
     try {
       const Order = require('./models/Order');
       const { releaseLiquidity } = require('./services/balanceEngine');
 
-      // أعد السيولة المحجوزة للطلبات المنتهية قبل حذفها
-      const expiredReserved = await Order.find({
+      const expiredOrders = await Order.find({
         expiresAt: { $lt: new Date() },
-        status: { $in: ['pending'] },
-        liquidityReserved: true
+        status: { $in: ['pending'] }
       });
-      for (const expOrder of expiredReserved) {
-        try { await releaseLiquidity(expOrder) } catch (e) {}
+
+      for (const expOrder of expiredOrders) {
+        try {
+          // أعد السيولة المحجوزة إن وجدت
+          if (expOrder.liquidityReserved) {
+            await releaseLiquidity(expOrder);
+            expOrder.liquidityReserved = false;
+          }
+          expOrder.status = 'expired';
+          await expOrder.save();
+        } catch (e) { console.error('expire order error:', e.message); }
       }
 
-      const result = await Order.deleteMany({
-        expiresAt: { $lt: new Date() },
-        status:    { $in: ['pending'] }
-      });
-      if (result.deletedCount > 0) console.log(`🧹 Cleaned up ${result.deletedCount} expired pending orders`);
+      if (expiredOrders.length > 0) console.log(`🕐 Marked ${expiredOrders.length} orders as expired`);
     } catch (err) {
       console.error('Cleanup job error:', err.message);
     }

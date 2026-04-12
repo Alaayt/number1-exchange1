@@ -9,6 +9,7 @@ export const STATUS_CONFIG = {
   completed:  { label: 'مكتمل',     color: '#059669', bg: '#064e3b' },
   rejected:   { label: 'مرفوض',    color: '#f85149', bg: '#3d0a0a' },
   cancelled:  { label: 'ملغي',      color: '#6e7681', bg: '#21262d' },
+  expired:    { label: 'منتهي',     color: '#9ca3af', bg: '#1f2937' },
 }
 
 // Shared crypto network presets (used in AdminWallets + AdminPaymentMethods)

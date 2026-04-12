@@ -129,6 +129,7 @@ const orderSchema = new mongoose.Schema(
         "completed",
         "rejected",
         "cancelled",
+        "expired",
       ],
       default: "pending",
     },
