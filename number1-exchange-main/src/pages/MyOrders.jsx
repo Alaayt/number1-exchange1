@@ -16,17 +16,18 @@ const STATUS_CONFIG = {
 }
 
 export default function MyOrders() {
-  const { user }          = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const navigate          = useNavigate()
   const [orders, setOrders]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState(null)
 
   useEffect(() => {
+    if (authLoading) return
     window.scrollTo(0, 0)
     if (!user) { navigate('/'); return }
     fetchOrders()
-  }, [user])
+  }, [user, authLoading])
 
   const fetchOrders = async () => {
     setLoading(true)

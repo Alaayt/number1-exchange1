@@ -457,7 +457,7 @@ function WithdrawModal({ isOpen, onClose, balance }) {
 // الصفحة الرئيسية — بدون أي تعديل
 // ══════════════════════════════════════════════
 export default function WalletPage() {
-  const { user }   = useAuth()
+  const { user, loading: authLoading }   = useAuth()
   const navigate   = useNavigate()
   const [wallet,       setWallet]       = useState(null)
   const [transactions, setTransactions] = useState([])
@@ -470,10 +470,11 @@ export default function WalletPage() {
   const [showWithdraw, setShowWithdraw] = useState(false)
 
   useEffect(() => {
+    if (authLoading) return          // انتظر حتى ينتهي التحقق من الـ token
     window.scrollTo(0, 0)
     if (!user) { navigate('/'); return }
     fetchAll()
-  }, [user])
+  }, [user, authLoading])
 
   const fetchAll = async () => {
     setLoading(true); setError(null)
