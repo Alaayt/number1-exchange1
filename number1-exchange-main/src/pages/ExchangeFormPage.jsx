@@ -175,11 +175,12 @@ export default function ExchangeFormPage({ onOpenAuth }) {
   const [agreed,      setAgreed]      = useState(false)
   const [math,        setMath]        = useState(() => genMath())
   const [mathInput,   setMathInput]   = useState('')
-  const [loading,     setLoading2]    = useState(false)
-  const [error,       setError]       = useState('')
-  const [walletId,    setWalletId]    = useState('')
-  const [submitted,   setSubmitted]   = useState(false)
-  const [fieldErrors, setFieldErrors] = useState({})
+  const [loading,       setLoading2]      = useState(false)
+  const [error,         setError]         = useState('')
+  const [walletId,      setWalletId]      = useState('')
+  const [walletBalance, setWalletBalance] = useState(null)
+  const [submitted,     setSubmitted]     = useState(false)
+  const [fieldErrors,   setFieldErrors]   = useState({})
 
   // ── حفظ البيانات في sessionStorage عند التغيير ─────────
   useEffect(() => { ss.set('sendAmount',    sendAmount)    }, [sendAmount])
@@ -197,6 +198,14 @@ export default function ExchangeFormPage({ onOpenAuth }) {
     fetch(`${API}/api/wallet`, { headers: { Authorization: `Bearer ${localStorage.getItem('n1_token')}` } })
       .then(r => r.json()).then(d => { if (d.success) setWalletId(d.wallet.walletId) }).catch(() => {})
   }, [isWalletRecv, user])
+
+  useEffect(() => {
+    if (!isWalletSend || !user) return
+    fetch(`${API}/api/wallet`, { headers: { Authorization: `Bearer ${localStorage.getItem('n1_token')}` } })
+      .then(r => r.json())
+      .then(d => { if (d.success) setWalletBalance(d.wallet.balance ?? 0) })
+      .catch(() => {})
+  }, [isWalletSend, user])
 
   // ── السعر ──────────────────────────────────────────────
   const rateDisplay = useMemo(() => {
@@ -282,6 +291,8 @@ export default function ExchangeFormPage({ onOpenAuth }) {
       else if (limits.max < Infinity && recvAmt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
       else if (limits.available < Infinity && recvAmt > limits.available) {
         errs.amount = `المبلغ يتجاوز الرصيد المتاح (${limits.available.toLocaleString()} ${limits.unit})`
+      } else if (isWalletSend && walletBalance !== null && amt > walletBalance) {
+        errs.amount = `رصيد محفظتك الداخلية غير كافٍ — رصيدك: ${walletBalance.toFixed(4)} USDT`
       }
     }
 
@@ -327,6 +338,8 @@ export default function ExchangeFormPage({ onOpenAuth }) {
       else if (limits.max < Infinity && recvAmt > limits.max) errs.amount = `الحد الأقصى هو ${limits.max.toLocaleString()} ${limits.unit}`
       else if (limits.available < Infinity && recvAmt > limits.available)
         errs.amount = `المبلغ يتجاوز الرصيد المتاح (${limits.available.toLocaleString()} ${limits.unit})`
+      else if (isWalletSend && walletBalance !== null && amt > walletBalance)
+        errs.amount = `رصيد محفظتك الداخلية غير كافٍ — رصيدك: ${walletBalance.toFixed(4)} USDT`
     }
     if (!email || !emailRx.test(email)) errs.email = 'يرجى إدخال بريد إلكتروني صحيح'
     if (isEgpSend && userPhone && !/^\+?[0-9\s\-]{7,20}$/.test(userPhone.trim())) errs.phone = 'رقم الهاتف غير صحيح'
@@ -544,6 +557,14 @@ export default function ExchangeFormPage({ onOpenAuth }) {
               </div>
             </div>
             <FieldError msg={fieldErrors.amount} />
+            {isWalletSend && walletBalance !== null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: walletBalance <= 0 ? 'rgba(239,68,68,0.12)' : parseFloat(sendAmount) > walletBalance ? 'rgba(239,68,68,0.12)' : 'rgba(0,229,160,0.12)', border: `1px solid ${walletBalance <= 0 || parseFloat(sendAmount) > walletBalance ? 'rgba(239,68,68,0.4)' : 'rgba(0,229,160,0.4)'}`, borderRadius: 10, marginTop: 6, fontSize: '0.8rem', fontWeight: 700 }}>
+                <div style={{ fontSize: '1.1rem' }}>💼</div>
+                <span>رصيد محفظتك الداخلية: <strong style={{ color: walletBalance <= 0 || parseFloat(sendAmount) > walletBalance ? 'var(--red)' : 'var(--green)' }}>{walletBalance.toFixed(4)} USDT</strong></span>
+                {walletBalance <= 0 && <span style={{ fontSize: '0.74rem', color: 'var(--red)' }}>⛔ رصيد فارغ</span>}
+                {walletBalance > 0 && parseFloat(sendAmount) > walletBalance && <span style={{ fontSize: '0.74rem', color: 'var(--red)' }}>⛔ غير كافٍ</span>}
+              </div>
+            )}
             {limits.available !== undefined && limits.available < Infinity && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: limits.available <= 0 ? 'rgba(239,68,68,0.12)' : limits.available < 500 ? 'rgba(245,158,11,0.12)' : 'rgba(0,229,160,0.12)', border: `1px solid ${limits.available <= 0 ? 'rgba(239,68,68,0.4)' : limits.available < 500 ? 'rgba(245,158,11,0.4)' : 'rgba(0,229,160,0.4)'}`, borderRadius: 10, marginTop: 6, fontSize: '0.8rem', fontWeight: 700 }}>
                 <div style={{ fontSize: '1.1rem' }}>💰</div>
