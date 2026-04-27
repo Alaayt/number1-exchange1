@@ -133,6 +133,14 @@ async function completeOrder(order, completedBy = 'system', note = '') {
       console.log(`[BalanceEngine] ✅ Step 3: Wallet credit for ${order.orderNumber}:`, walletResult)
     }
 
+    // ── تسجيل الإتمام في AuditLog ────────────────
+    try {
+      const { logOrderEvent } = require('./auditService')
+      await logOrderEvent(order, completedBy, note || `🎉 تم إتمام الطلب via ${completedBy}`)
+    } catch (auditErr) {
+      console.error('[BalanceEngine] AuditLog failed:', auditErr.message)
+    }
+
     console.log(`[BalanceEngine] 🔥 Order ${order.orderNumber} completed by ${completedBy}`)
     return { success: true, order, walletResult }
   } catch (err) {

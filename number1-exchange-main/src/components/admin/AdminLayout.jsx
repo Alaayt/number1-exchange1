@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, ArrowLeftRight, Wallet, TrendingUp,
   CreditCard, Users, Settings, Menu, X,
-  LogOut, ChevronRight, ChevronLeft, Home,
+  LogOut, ChevronRight, ChevronLeft, Home, ShieldCheck,
 } from 'lucide-react'
 import useAuth from '../../context/useAuth'
 
@@ -16,6 +16,7 @@ const NAV = [
   { path: '/admin/payment-methods', label: 'وسائل الدفع',        icon: CreditCard },
   { path: '/admin/users',           label: 'المستخدمون',         icon: Users },
   { path: '/admin/settings',        label: 'الإعدادات',          icon: Settings },
+  { path: '/admin/audit-logs',      label: 'سجل التدقيق',        icon: ShieldCheck },
 ]
 
 export default function AdminLayout({ children, title }) {

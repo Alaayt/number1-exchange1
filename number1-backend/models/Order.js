@@ -170,7 +170,7 @@ const orderSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
       default: null,
-      index: { expireAfterSeconds: 0 },
+      index: true,
     },
   },
   { timestamps: true },

@@ -57,6 +57,7 @@ app.use('/api/wallet', require('./routes/wallet'));
 
 // ─── Balance Engine (central liquidity service) ──
 const { completeOrder, processTransaction } = require('./services/balanceEngine');
+const { logOrderEvent } = require('./services/auditService');
 
 // ─── Telegram Webhook ─────────────────────────
 app.post('/api/telegram/webhook', async (req, res) => {
@@ -196,6 +197,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
       const msgId = cbMessage?.message_id;
       if (msgId) await telegramService.editOrderMessage(msgId, order, 'complete');
       await telegramService.answerCallbackQuery(callbackQueryId, responseMsg);
+      await logOrderEvent(order, 'admin:telegram', '🎉 تم إتمام الطلب via Telegram');
 
       return res.json({ ok: true });
     }
@@ -226,6 +228,8 @@ app.post('/api/telegram/webhook', async (req, res) => {
       } catch (e) { console.error('releaseLiquidity on telegram reject failed:', e.message); }
     }
 
+    await logOrderEvent(order, 'admin:telegram', `${action_data.msg} via Telegram`);
+
     // Update Telegram message (single call — fixed duplicate)
     const msgId = cbMessage?.message_id;
     if (msgId) await telegramService.editOrderMessage(msgId, order, action);
@@ -238,6 +242,9 @@ app.post('/api/telegram/webhook', async (req, res) => {
     res.json({ ok: true });
   }
 });
+
+// ─── Audit Log Routes ─────────────────────────
+app.use('/api/audit-logs', require('./routes/auditLogs'));
 
 // ─── Admin Routes ─────────────────────────────
 app.use('/api/admin', require('./routes/admin'));
@@ -283,6 +290,7 @@ app.listen(PORT, async () => {
           }
           expOrder.status = 'expired';
           await expOrder.save();
+          await logOrderEvent(expOrder, 'system', 'انتهت صلاحية الطلب تلقائياً');
         } catch (e) { console.error('expire order error:', e.message); }
       }
 

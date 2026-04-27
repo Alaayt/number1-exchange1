@@ -11,6 +11,7 @@ const Rate = require("../models/Rate");
 const { protect, optionalProtect } = require("../middleware/auth");
 const { upload } = require("../services/cloudinary");
 const telegramService = require("../services/telegram");
+const { logOrderEvent } = require("../services/auditService");
 
 const ORDER_LIFETIME_MS = 30 * 60 * 1000; // 30 دقيقة
 
@@ -673,6 +674,9 @@ router.post("/", optionalProtect, async (req, res) => {
       }
     }
 
+    // ── تسجيل الإنشاء في AuditLog ────────────────
+    await logOrderEvent(order, req.user ? `user:${req.user.email}` : 'guest', 'تم إنشاء الطلب', 'CREATED');
+
     res.status(201).json({
       success: true,
       message: "Order created successfully.",
@@ -855,6 +859,9 @@ router.post("/:orderNumber/cancel", async (req, res) => {
     } catch (tgErr) {
       console.error("Telegram cancel notify failed:", tgErr.message);
     }
+
+    // ── تسجيل الإلغاء في AuditLog ─────────────────
+    await logOrderEvent(order, 'customer', reason ? `إلغاء العميل: ${reason}` : 'إلغاء العميل');
 
     res.json({ success: true, message: "تم إلغاء الطلب." });
   } catch (error) {

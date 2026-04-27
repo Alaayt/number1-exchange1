@@ -11,6 +11,7 @@ const telegramService = require("../services/telegram");
 const Rate = require("../models/Rate");
 const mongoose = require("mongoose");
 const { completeOrder, processTransaction } = require("../services/balanceEngine");
+const { logOrderEvent } = require("../services/auditService");
 
 router.use(protect, adminOnly);
 
@@ -90,6 +91,7 @@ router.put("/orders/:id/status", async (req, res) => {
       }
 
       await telegramService.notifyOrderUpdate(order, status, note);
+      await logOrderEvent(order, `admin:${req.user.email}`, note || 'تم إتمام الطلب');
       return res.json({
         success: true,
         message: "Order completed with balance update.",
@@ -118,6 +120,7 @@ router.put("/orders/:id/status", async (req, res) => {
       } catch (e) { console.error("releaseLiquidity on reject failed:", e.message); }
     }
 
+    await logOrderEvent(order, `admin:${req.user.email}`, note || `تم تغيير الحالة إلى ${status}`);
     await telegramService.notifyOrderUpdate(order, status, note);
     res.json({
       success: true,
