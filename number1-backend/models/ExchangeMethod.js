@@ -99,7 +99,7 @@ const DEFAULT_SEND = [
     rateKey: "USDT",
     paymentMethodKey: "USDT_TRC20",
     network: "TRC20",
-    compatibleWith: ["mgo-recv", "wallet-recv"],
+    compatibleWith: ["mgo-recv", "wallet-recv", "vodafone-recv", "instapay-recv"],
     sortOrder: 2,
   },
   {
@@ -114,7 +114,7 @@ const DEFAULT_SEND = [
     rateKey: "USDT",
     paymentMethodKey: "USDT_BEP20",
     network: "BEP20",
-    compatibleWith: ["mgo-recv", "wallet-recv"],
+    compatibleWith: ["mgo-recv", "wallet-recv", "vodafone-recv", "instapay-recv"],
     sortOrder: 3,
   },
   {
@@ -128,7 +128,7 @@ const DEFAULT_SEND = [
     mode: "default",
     rateKey: "MGO",
     paymentMethodKey: "MONEYGO",
-    compatibleWith: ["usdt-trc", "usdt-bnb", "wallet-recv"],
+    compatibleWith: ["usdt-trc", "usdt-bnb", "wallet-recv", "vodafone-recv", "instapay-recv"],
     sortOrder: 4,
   },
   {
@@ -209,6 +209,36 @@ const DEFAULT_RECEIVE = [
     compatibleWith: ["usdt-trc", "usdt-bnb", "mgo-send"],
     sortOrder: 3,
   },
+  {
+    id: "vodafone-recv",
+    name: "Vodafone Cash",
+    symbol: "EGP",
+    type: "egp",
+    color: "#e50000",
+    img: "/images/vodafone.png",
+    enabled: true,
+    mode: "default",
+    rateKey: "EGP_VODAFONE",
+    paymentMethodKey: "VODAFONE_CASH",
+    placeholder: "01XXXXXXXXX",
+    compatibleWith: ["usdt-trc", "usdt-bnb", "mgo-send"],
+    sortOrder: 4,
+  },
+  {
+    id: "instapay-recv",
+    name: "InstaPay",
+    symbol: "EGP",
+    type: "egp",
+    color: "#6a0dad",
+    img: "/images/instapay.png",
+    enabled: true,
+    mode: "default",
+    rateKey: "EGP_INSTAPAY",
+    paymentMethodKey: "INSTAPAY",
+    placeholder: "username@instapay",
+    compatibleWith: ["usdt-trc", "usdt-bnb", "mgo-send"],
+    sortOrder: 5,
+  },
 ];
 
 // Patch a method array: fill empty name/symbol/type from the defaults map
@@ -279,12 +309,16 @@ exchangeMethodSchema.statics.getSingleton = async function () {
     const COMPAT_UPDATES_SEND = {
       'vodafone':    ['usdt-bnb'],
       'instapay':    ['usdt-bnb'],
-      'mgo-send':    ['usdt-bnb', 'wallet-recv'],
+      'mgo-send':    ['usdt-bnb', 'wallet-recv', 'vodafone-recv', 'instapay-recv'],
       'wallet-usdt': ['usdt-bnb', 'mgo-recv'],
+      'usdt-trc':    ['vodafone-recv', 'instapay-recv'],
+      'usdt-bnb':    ['vodafone-recv', 'instapay-recv'],
     };
     const COMPAT_UPDATES_RECV = {
-      'mgo-recv':    ['usdt-bnb', 'wallet-usdt'],
-      'wallet-recv': ['usdt-bnb', 'mgo-send'],
+      'mgo-recv':       ['usdt-bnb', 'wallet-usdt'],
+      'wallet-recv':    ['usdt-bnb', 'mgo-send'],
+      'vodafone-recv':  ['usdt-trc', 'usdt-bnb', 'mgo-send'],
+      'instapay-recv':  ['usdt-trc', 'usdt-bnb', 'mgo-send'],
     };
 
     let needsCompatUpdate = false;

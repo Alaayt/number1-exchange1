@@ -659,7 +659,11 @@ router.post("/", optionalProtect, async (req, res) => {
     if (telegramMessageId || liquidityReserved) {
       if (telegramMessageId) order.telegramMessageId = telegramMessageId;
       if (liquidityReserved) order.liquidityReserved = true;
-      await order.save();
+      try {
+        await order.save();
+      } catch (saveErr) {
+        console.error("Order post-create save failed:", saveErr.message);
+      }
     }
 
     // ── إرسال صورة الإيصال للتليغرام ──────────

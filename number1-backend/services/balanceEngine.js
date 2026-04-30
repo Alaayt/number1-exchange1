@@ -16,6 +16,8 @@ const ORDER_TYPE_CURRENCIES = {
   WALLET_TO_MONEYGO:     { currencySent: null,   currencyRecv: 'MGO'  },
   MONEYGO_TO_USDT:       { currencySent: 'MGO',  currencyRecv: 'USDT' },
   MONEYGO_TO_WALLET:     { currencySent: 'MGO',  currencyRecv: null   },
+  USDT_TO_EGP:           { currencySent: 'USDT', currencyRecv: 'EGP'  },
+  MONEYGO_TO_EGP:        { currencySent: 'MGO',  currencyRecv: 'EGP'  },
 }
 
 function getCurrencies(order) {
